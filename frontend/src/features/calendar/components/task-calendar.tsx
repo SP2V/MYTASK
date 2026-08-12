@@ -71,24 +71,34 @@ export function TaskCalendar() {
   }
 
   return (
-    <div className="calendar-wrapper rounded-lg border bg-card p-2 md:p-4">
-      <FullCalendar
-        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-        initialView="dayGridMonth"
-        headerToolbar={{
-          left: 'prev,next today',
-          center: 'title',
-          right: 'dayGridMonth,timeGridWeek',
-        }}
-        height="auto"
-        editable
-        selectable
-        dayMaxEvents={3}
-        events={events}
-        dateClick={handleDateClick}
-        eventClick={handleEventClick}
-        eventDrop={handleEventDrop}
+    <div className="relative isolate h-full overflow-hidden rounded-2xl">
+      <div
+        className="pointer-events-none absolute -left-16 -top-24 -z-10 size-64 rounded-full bg-primary/30 blur-3xl dark:bg-primary/20"
+        aria-hidden="true"
       />
+      <div
+        className="pointer-events-none absolute -bottom-24 -right-10 -z-10 size-72 rounded-full bg-priority-medium/30 blur-3xl dark:bg-priority-medium/20"
+        aria-hidden="true"
+      />
+      <div className="calendar-wrapper h-full rounded-2xl border border-white/40 bg-white/50 p-2 shadow-xl shadow-black/5 backdrop-blur-xl dark:border-white/10 dark:bg-white/5 dark:shadow-black/20 md:p-4">
+        <FullCalendar
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          initialView="dayGridMonth"
+          headerToolbar={{
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek',
+          }}
+          height="100%"
+          editable
+          selectable
+          dayMaxEvents={3}
+          events={events}
+          dateClick={handleDateClick}
+          eventClick={handleEventClick}
+          eventDrop={handleEventDrop}
+        />
+      </div>
     </div>
   )
 }

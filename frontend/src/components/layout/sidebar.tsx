@@ -9,13 +9,13 @@ export function Sidebar() {
   const { openCreate } = useTaskDialog()
 
   return (
-    <aside className="hidden w-60 shrink-0 flex-col border-r bg-card/40 md:flex">
-      <div className="flex h-14 items-center gap-2 border-b px-5">
+    <aside className="hidden w-60 shrink-0 flex-col overflow-hidden border-r border-white/40 bg-card/50 backdrop-blur-xl dark:border-white/10 dark:bg-white/5 md:flex">
+      <div className="flex h-14 shrink-0 items-center gap-2 border-b border-white/40 px-5 dark:border-white/10">
         <ListTodo className="size-5 text-primary" aria-hidden="true" />
         <span className="text-sm font-semibold">Task Manager</span>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 p-3" aria-label="Primary">
+      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3" aria-label="Primary">
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.to}
@@ -33,7 +33,7 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="border-t p-3">
+      <div className="shrink-0 border-t border-white/40 p-3 dark:border-white/10">
         <Button className="w-full gap-2" onClick={() => openCreate()}>
           <Plus className="size-4" />
           Add Task

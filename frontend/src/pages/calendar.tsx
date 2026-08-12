@@ -8,11 +8,13 @@ const TaskCalendar = lazy(() =>
 
 export default function CalendarPage() {
   return (
-    <>
+    <div className="flex h-full min-h-0 flex-col">
       <PageHeader title="Calendar" description="Click a day to add a task, or drag a task to reschedule it." />
-      <Suspense fallback={<Skeleton className="h-[600px] w-full" />}>
-        <TaskCalendar />
-      </Suspense>
-    </>
+      <div className="min-h-0 flex-1">
+        <Suspense fallback={<Skeleton className="h-full w-full" />}>
+          <TaskCalendar />
+        </Suspense>
+      </div>
+    </div>
   )
 }

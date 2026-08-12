@@ -7,7 +7,7 @@ export function Header() {
   const { query, setQuery } = useSearch()
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-white/40 bg-background/60 px-4 backdrop-blur-xl dark:border-white/10 md:px-6">
       <div className="flex items-center gap-2 md:hidden">
         <ListTodo className="size-5 text-primary" aria-hidden="true" />
       </div>

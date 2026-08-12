@@ -98,6 +98,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    position: relative;
+    isolation: isolate;
     font-feature-settings:
       "cv02",
       "cv03",
@@ -106,10 +108,113 @@
   }
 }
 
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(48rem 34rem at 8% -8%, color-mix(in oklch, var(--primary) 20%, transparent), transparent 60%),
+    radial-gradient(44rem 36rem at 108% 12%, color-mix(in oklch, var(--priority-medium) 22%, transparent), transparent 60%),
+    radial-gradient(50rem 42rem at 45% 115%, color-mix(in oklch, var(--priority-urgent) 16%, transparent), transparent 60%),
+    radial-gradient(38rem 30rem at 95% 95%, color-mix(in oklch, var(--priority-low) 20%, transparent), transparent 60%);
+  pointer-events: none;
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--foreground) 25%, transparent) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: color-mix(in oklch, var(--foreground) 20%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in oklch, var(--foreground) 35%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.calendar-wrapper .fc {
+  --fc-border-color: color-mix(in oklch, var(--foreground) 10%, transparent);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: color-mix(in oklch, var(--foreground) 4%, transparent);
+  --fc-today-bg-color: color-mix(in oklch, var(--primary) 12%, transparent);
+  --fc-event-border-color: transparent;
+  --fc-list-event-hover-bg-color: color-mix(in oklch, var(--foreground) 6%, transparent);
+}
+
+.calendar-wrapper .fc-scrollgrid,
+.calendar-wrapper .fc-scrollgrid-section > * {
+  border-color: var(--fc-border-color);
+}
+
+.calendar-wrapper .fc-daygrid-day,
+.calendar-wrapper .fc-timegrid-slot {
+  background-color: transparent;
+}
+
+.calendar-wrapper .fc-col-header-cell {
+  background: color-mix(in oklch, var(--foreground) 3%, transparent);
+}
+
+.calendar-wrapper .fc-toolbar-title {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.calendar-wrapper .fc-button {
+  border: 1px solid color-mix(in oklch, var(--foreground) 12%, transparent) !important;
+  background: color-mix(in oklch, var(--background) 60%, transparent) !important;
+  color: var(--foreground) !important;
+  backdrop-filter: blur(8px);
+  box-shadow: none !important;
+  text-transform: capitalize;
+}
+
+.calendar-wrapper .fc-button:hover {
+  background: color-mix(in oklch, var(--foreground) 8%, transparent) !important;
+}
+
+.calendar-wrapper .fc-button-primary:not(:disabled).fc-button-active,
+.calendar-wrapper .fc-button-primary:not(:disabled):active {
+  background: color-mix(in oklch, var(--primary) 85%, transparent) !important;
+  border-color: transparent !important;
+  color: var(--primary-foreground) !important;
+}
+
+.calendar-wrapper .fc-event {
+  border-radius: 0.4rem;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 1px 2px color-mix(in oklch, var(--foreground) 15%, transparent);
+}
+
+.calendar-wrapper .fc-daygrid-day.fc-day-today,
+.calendar-wrapper .fc-timegrid-col.fc-day-today {
+  background-color: var(--fc-today-bg-color);
 }
