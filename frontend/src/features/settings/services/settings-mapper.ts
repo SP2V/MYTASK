@@ -9,11 +9,11 @@ export interface SettingsRow {
   date_format: Settings['dateFormat']
   time_format: Settings['timeFormat']
   notifications_enabled: boolean
+  email_notifications_enabled: boolean
 }
 
 export function rowToSettings(row: SettingsRow): Settings {
   return {
-    id: 'app-settings',
     theme: row.theme,
     defaultPriority: row.default_priority,
     defaultCategoryId: row.default_category_id,
@@ -21,12 +21,12 @@ export function rowToSettings(row: SettingsRow): Settings {
     dateFormat: row.date_format,
     timeFormat: row.time_format,
     notificationsEnabled: row.notifications_enabled,
+    emailNotificationsEnabled: row.email_notifications_enabled,
   }
 }
 
-export function settingsToRow(settings: Settings): SettingsRow {
+export function settingsToRow(settings: Settings): Omit<SettingsRow, 'id'> {
   return {
-    id: 'app-settings',
     theme: settings.theme,
     default_priority: settings.defaultPriority,
     default_category_id: settings.defaultCategoryId,
@@ -34,5 +34,6 @@ export function settingsToRow(settings: Settings): SettingsRow {
     date_format: settings.dateFormat,
     time_format: settings.timeFormat,
     notifications_enabled: settings.notificationsEnabled,
+    email_notifications_enabled: settings.emailNotificationsEnabled,
   }
 }

@@ -1,15 +1,4 @@
--- Default categories, matching the app's built-in defaults.
--- Safe to re-run: skips insertion if categories already exist.
-insert into categories (name, color, icon)
-select v.name, v.color, v.icon
-from (values
-  ('Work', 'blue', 'Briefcase'),
-  ('Personal', 'violet', 'User'),
-  ('Study', 'green', 'BookOpen'),
-  ('Other', 'slate', 'Tag')
-) as v(name, color, icon)
-where not exists (select 1 from categories);
-
-insert into settings (id)
-values ('app-settings')
-on conflict (id) do nothing;
+-- No longer used for categories/settings: those are now per-user and seeded
+-- automatically by the `on_auth_user_created` trigger (see
+-- migrations/0002_auth.sql) the moment someone signs in with Google for the
+-- first time. Nothing to run here after 0002.

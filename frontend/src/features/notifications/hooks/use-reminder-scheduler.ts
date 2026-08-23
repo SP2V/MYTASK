@@ -13,13 +13,13 @@ const CHECK_INTERVAL_MS = 30_000
  * closed. Notified task ids are tracked in-memory only, so a reminder may
  * repeat if the app is reloaded within its trigger window.
  */
-export function useReminderScheduler(): void {
+export function useReminderScheduler(enabled: boolean): void {
   const tasks = useTasks()
   const settings = useSettings()
   const notifiedIds = useRef(new Set<string>())
 
   useEffect(() => {
-    if (!settings.notificationsEnabled) return
+    if (!enabled || !settings.notificationsEnabled) return
 
     const check = () => {
       if (getNotificationPermission() !== 'granted') return
@@ -48,5 +48,5 @@ export function useReminderScheduler(): void {
     check()
     const interval = setInterval(check, CHECK_INTERVAL_MS)
     return () => clearInterval(interval)
-  }, [tasks, settings.notificationsEnabled])
+  }, [enabled, tasks, settings.notificationsEnabled])
 }

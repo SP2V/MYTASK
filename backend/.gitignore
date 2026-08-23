@@ -1,0 +1,5 @@
+# Supabase CLI local state (project link, cached versions) — machine-specific
+.temp/
+
+# Real cron setup (contains project ref + service role key) — only commit the .example
+cron_setup.sql

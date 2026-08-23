@@ -1,6 +1,6 @@
 # Personal Task Manager
 
-A fast task manager for a single user. No login, no accounts, no team features.
+A fast task manager for a single user, signed in with Google via Supabase Auth.
 Data lives in Supabase — see [`../backend/README.md`](../backend/README.md) for setup.
 
 ## Features
@@ -16,10 +16,16 @@ Data lives in Supabase — see [`../backend/README.md`](../backend/README.md) fo
 - **Calendar** — month/week views (FullCalendar), click a day to add a task, drag to reschedule
 - **Dashboard** — active/today/completed-today/overdue/upcoming counts, completion %,
   breakdown by category and priority (Recharts)
-- **Reminders** — optional browser notifications 15m/30m/1h/1d before a task is due
-  (see [Notification limitations](#notification-limitations))
+- **Google sign-in** — Supabase Auth (Google OAuth); every user's tasks, categories,
+  and settings are private, scoped by row-level security
+- **Reminders** — browser notifications 15m/30m/1h/1d before a task is due
+  (see [Notification limitations](#notification-limitations)), plus an optional
+  server-sent email reminder for the same window that fires even when the app is closed
+- **Google Calendar sync** — optional, per-user opt-in (Settings → Google Calendar →
+  Connect); tasks with a due date are created/updated/deleted as events on the
+  user's primary calendar automatically after every save
 - **Settings** — theme (system/light/dark), default priority/category, week start,
-  date/time format, notifications
+  date/time format, browser + email notifications, Google Calendar connection
 - **Export / Import** — versioned JSON backup, validated on import, never corrupts
   existing data on a bad file
 
@@ -36,8 +42,7 @@ Data lives in Supabase — see [`../backend/README.md`](../backend/README.md) fo
 
 This app needs a Supabase project before it will run — see
 [`../backend/README.md`](../backend/README.md) for creating the project, running the
-SQL migration, and getting your API credentials. **Read the security note there** —
-this app has no login, so anyone with your Supabase URL/key can read and write your data.
+SQL migrations, enabling Google as a sign-in provider, and getting your API credentials.
 
 ```bash
 npm install
@@ -68,9 +73,9 @@ All data (tasks, categories, settings) lives in Supabase Postgres — see
 requests to any server other than your Supabase project; `localStorage`/IndexedDB are
 not used for task data.
 
-Because there's no login, data is not tied to "your" browser — it's tied to whichever
-Supabase project your `.env` points at. Anyone with that project's URL and anon key can
-read and write it.
+Data is tied to your Google account, not your browser — sign in from any device and
+you'll see the same tasks. Row-level security scopes every query to `auth.uid()`, so
+the anon key alone grants no access to anyone's data.
 
 ## Export / Import
 
@@ -123,8 +128,10 @@ src/
 ├── components/
 │   ├── ui/         # Base primitives (button, dialog, select, ...)
 │   ├── layout/      # Sidebar, header, mobile nav, app shell
+│   ├── auth/        # RequireAuth route guard
 │   └── common/      # Empty states, confirm dialog, page header
 ├── features/
+│   ├── auth/         # Google sign-in, session state (AuthProvider/useAuth)
 │   ├── tasks/        # Task CRUD, forms, filtering/sorting, recurrence engine
 │   ├── categories/   # Category CRUD
 │   ├── calendar/      # FullCalendar integration

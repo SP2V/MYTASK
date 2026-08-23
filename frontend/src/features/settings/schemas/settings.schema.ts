@@ -15,7 +15,6 @@ export type TimeFormatOption = z.infer<typeof timeFormatSchema>
 
 export const settingsSchema = z
   .object({
-    id: z.literal('app-settings').default('app-settings'),
     theme: themeSchema.default('SYSTEM'),
     defaultPriority: taskPrioritySchema.default('MEDIUM'),
     defaultCategoryId: z.string().nullable().default(null),
@@ -23,9 +22,10 @@ export const settingsSchema = z
     dateFormat: dateFormatSchema.default('MDY'),
     timeFormat: timeFormatSchema.default('H12'),
     notificationsEnabled: z.boolean().default(false),
+    emailNotificationsEnabled: z.boolean().default(false),
   })
   .strict()
 export type Settings = z.infer<typeof settingsSchema>
 
-export const settingsUpdateSchema = settingsSchema.partial().omit({ id: true })
+export const settingsUpdateSchema = settingsSchema.partial()
 export type SettingsUpdateInput = z.infer<typeof settingsUpdateSchema>

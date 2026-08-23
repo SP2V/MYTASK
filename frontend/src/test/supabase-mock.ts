@@ -119,6 +119,8 @@ class MockQueryBuilder implements PromiseLike<{ data: unknown; error: { message:
   }
 }
 
+const MOCK_USER_ID = '00000000-0000-0000-0000-000000000001'
+
 export interface MockSupabaseClient {
   from: (table: string) => {
     select: (columns?: string) => MockQueryBuilder
@@ -126,6 +128,12 @@ export interface MockSupabaseClient {
     update: (payload: Row) => MockQueryBuilder
     delete: () => MockQueryBuilder
     upsert: (payload: Row | Row[], options?: { onConflict?: string }) => MockQueryBuilder
+  }
+  auth: {
+    getUser: () => Promise<{ data: { user: { id: string } | null }; error: null }>
+  }
+  functions: {
+    invoke: (name: string, options?: unknown) => Promise<{ data: null; error: null }>
   }
   __reset: () => void
 }
@@ -143,6 +151,16 @@ export function createMockSupabaseClient(): MockSupabaseClient {
         upsert: (payload: Row | Row[], options?: { onConflict?: string }) =>
           new MockQueryBuilder(store, table, 'upsert', payload, options),
       }
+    },
+    auth: {
+      async getUser() {
+        return { data: { user: { id: MOCK_USER_ID } }, error: null }
+      },
+    },
+    functions: {
+      async invoke() {
+        return { data: null, error: null }
+      },
     },
     __reset() {
       store.clear()

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Download, Upload, Trash2, BellRing } from 'lucide-react'
+import { Download, Upload, Trash2, BellRing, Mail, CalendarDays } from 'lucide-react'
 import { PageHeader } from '@/components/common/page-header'
 import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -20,6 +20,9 @@ import {
 } from '@/components/ui/dialog'
 import { useSettings, settingsQueryKey } from '@/features/settings/hooks/use-settings'
 import { useTheme } from '@/features/settings/hooks/use-theme'
+import { useGoogleCalendarConnected, googleCalendarQueryKey } from '@/features/settings/hooks/use-google-calendar'
+import { connectGoogleCalendar } from '@/features/auth/services/auth-service'
+import { disconnectGoogleCalendar } from '@/features/settings/services/google-calendar-repository'
 import { useCategories, categoriesQueryKey } from '@/features/categories/hooks/use-categories'
 import { tasksQueryKey } from '@/features/tasks/hooks/use-tasks'
 import { settingsRepository } from '@/features/settings/services/settings-repository'
@@ -39,6 +42,7 @@ export default function SettingsPage() {
   const settings = useSettings()
   const { theme, setTheme } = useTheme()
   const categories = useCategories()
+  const calendarConnected = useGoogleCalendarConnected()
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -109,6 +113,24 @@ export default function SettingsPage() {
   }
 
   const notificationPermission = getNotificationPermission()
+
+  const handleConnectCalendar = async () => {
+    try {
+      await connectGoogleCalendar()
+    } catch {
+      toast.error('Unable to connect Google Calendar. Please try again.')
+    }
+  }
+
+  const handleDisconnectCalendar = async () => {
+    try {
+      await disconnectGoogleCalendar()
+      await queryClient.invalidateQueries({ queryKey: googleCalendarQueryKey })
+      toast.success('Google Calendar disconnected')
+    } catch {
+      toast.error('Unable to disconnect Google Calendar. Please try again.')
+    }
+  }
 
   return (
     <>
@@ -270,6 +292,54 @@ export default function SettingsPage() {
               />
             ) : (
               <Switch checked={false} disabled aria-label="Notifications unavailable" />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Email Reminders</CardTitle>
+            <CardDescription>
+              Sent by the server on a schedule, even when this app isn't open — as long as a
+              reminder is enabled on the task.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-sm">
+              <Mail className="size-4 text-muted-foreground" aria-hidden="true" />
+              <span className="text-muted-foreground">
+                {settings.emailNotificationsEnabled ? 'Enabled' : 'Disabled'}
+              </span>
+            </div>
+            <Switch
+              checked={settings.emailNotificationsEnabled}
+              onCheckedChange={(checked) => update({ emailNotificationsEnabled: checked })}
+              aria-label="Toggle email reminders"
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Google Calendar</CardTitle>
+            <CardDescription>
+              Tasks with a due date are created as events on your primary Google Calendar and kept
+              in sync automatically. Completing, archiving, or clearing a due date removes the event.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-sm">
+              <CalendarDays className="size-4 text-muted-foreground" aria-hidden="true" />
+              <span className="text-muted-foreground">
+                {calendarConnected ? 'Connected' : 'Not connected'}
+              </span>
+            </div>
+            {calendarConnected ? (
+              <Button variant="outline" onClick={handleDisconnectCalendar}>
+                Disconnect
+              </Button>
+            ) : (
+              <Button onClick={handleConnectCalendar}>Connect</Button>
             )}
           </CardContent>
         </Card>

@@ -11,6 +11,10 @@ import {
 } from '@/features/tasks/schemas/task.schema'
 import { computeNextOccurrence } from '@/features/tasks/services/recurrence-engine'
 import { rowToTask, taskToRow, type TaskRow } from '@/features/tasks/services/task-mapper'
+import {
+  syncTaskToGoogleCalendar,
+  deleteGoogleCalendarEvent,
+} from '@/features/settings/services/google-calendar-sync'
 
 const TABLE = 'tasks'
 
@@ -47,7 +51,9 @@ export class TaskRepository {
     })
     const { data, error } = await supabase.from(TABLE).insert(taskToRow(task)).select().single()
     const row = assertNoError(data, error)
-    return taskSchema.parse(rowToTask(row as TaskRow))
+    const result = taskSchema.parse(rowToTask(row as TaskRow))
+    syncTaskToGoogleCalendar(result.id)
+    return result
   }
 
   async updateTask(id: string, input: TaskUpdateInput): Promise<Task> {
@@ -67,12 +73,21 @@ export class TaskRepository {
       .select()
       .single()
     const row = assertNoError(data, error)
-    return taskSchema.parse(rowToTask(row as TaskRow))
+    const result = taskSchema.parse(rowToTask(row as TaskRow))
+    syncTaskToGoogleCalendar(result.id)
+    return result
   }
 
   async deleteTask(id: string): Promise<void> {
-    const { error } = await supabase.from(TABLE).delete().eq('id', id)
+    const { data, error } = await supabase
+      .from(TABLE)
+      .delete()
+      .eq('id', id)
+      .select('google_event_id')
+      .maybeSingle()
     if (error) throw new Error(error.message)
+    const googleEventId = (data as { google_event_id: string | null } | null)?.google_event_id
+    if (googleEventId) deleteGoogleCalendarEvent(googleEventId)
   }
 
   async duplicateTask(id: string): Promise<Task> {
@@ -96,7 +111,9 @@ export class TaskRepository {
       .select()
       .single()
     const row = assertNoError(data, error)
-    return taskSchema.parse(rowToTask(row as TaskRow))
+    const result = taskSchema.parse(rowToTask(row as TaskRow))
+    syncTaskToGoogleCalendar(result.id)
+    return result
   }
 
   async archiveTask(id: string): Promise<Task> {
@@ -120,7 +137,9 @@ export class TaskRepository {
       .select()
       .single()
     const row = assertNoError(data, error)
-    return taskSchema.parse(rowToTask(row as TaskRow))
+    const result = taskSchema.parse(rowToTask(row as TaskRow))
+    syncTaskToGoogleCalendar(result.id)
+    return result
   }
 
   /**
@@ -148,6 +167,7 @@ export class TaskRepository {
     const completedResult = taskSchema.parse(
       rowToTask(assertNoError(completedRow, completeError) as TaskRow),
     )
+    syncTaskToGoogleCalendar(completedResult.id)
 
     let nextOccurrence: Task | null = null
     if (existing.recurrence?.enabled && existing.dueDate) {
@@ -170,6 +190,7 @@ export class TaskRepository {
           .single()
         const row = assertNoError(data, error)
         nextOccurrence = taskSchema.parse(rowToTask(row as TaskRow))
+        syncTaskToGoogleCalendar(nextOccurrence.id)
       }
     }
 
@@ -188,7 +209,9 @@ export class TaskRepository {
       .select()
       .single()
     const row = assertNoError(data, error)
-    return taskSchema.parse(rowToTask(row as TaskRow))
+    const result = taskSchema.parse(rowToTask(row as TaskRow))
+    syncTaskToGoogleCalendar(result.id)
+    return result
   }
 
   async reassignCategory(fromCategoryId: string, toCategoryId: string | null): Promise<void> {

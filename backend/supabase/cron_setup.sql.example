@@ -1,0 +1,25 @@
+-- One-time setup: schedules the send-reminder-emails Edge Function to run
+-- every 5 minutes. Run this in the Supabase SQL Editor AFTER the function is
+-- deployed (`supabase functions deploy send-reminder-emails`).
+--
+-- Fill in the two placeholders below, then run it. Not a migration on
+-- purpose — it embeds your project ref and service role key, which must
+-- never be committed to the repo.
+
+select cron.schedule(
+  'send-reminder-emails',
+  '*/5 * * * *',
+  $$
+  select net.http_post(
+    url := 'https://<YOUR-PROJECT-REF>.supabase.co/functions/v1/send-reminder-emails',
+    headers := jsonb_build_object(
+      'Authorization', 'Bearer <YOUR-SERVICE-ROLE-KEY>',
+      'Content-Type', 'application/json'
+    ),
+    body := '{}'::jsonb
+  );
+  $$
+);
+
+-- To inspect scheduled jobs:   select * from cron.job;
+-- To remove this schedule:     select cron.unschedule('send-reminder-emails');
