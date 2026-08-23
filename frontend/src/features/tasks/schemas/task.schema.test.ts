@@ -9,7 +9,6 @@ const validFormInput = {
   dueDate: null,
   dueTime: null,
   recurrence: null,
-  reminder: null,
   notes: null,
 }
 
@@ -66,7 +65,6 @@ describe('taskSchema', () => {
     dueTime: null,
     completedAt: null,
     recurrence: null,
-    reminder: null,
     notes: null,
     seriesId: null,
     createdAt: '2026-01-01T00:00:00.000Z',

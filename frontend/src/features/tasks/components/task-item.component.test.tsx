@@ -38,7 +38,6 @@ describe('TaskItem', () => {
       dueDate: null,
       dueTime: null,
       recurrence: null,
-      reminder: null,
       notes: null,
     })
 
@@ -57,7 +56,6 @@ describe('TaskItem', () => {
       dueDate: null,
       dueTime: null,
       recurrence: null,
-      reminder: null,
       notes: null,
     })
 
@@ -80,7 +78,6 @@ describe('TaskItem', () => {
       dueDate: '2020-01-01',
       dueTime: null,
       recurrence: null,
-      reminder: null,
       notes: null,
     })
 

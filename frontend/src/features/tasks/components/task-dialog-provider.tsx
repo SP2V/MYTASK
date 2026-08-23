@@ -103,7 +103,6 @@ export function TaskDialogProvider({ children }: { children: ReactNode }) {
                 dueDate: state.task.dueDate,
                 dueTime: state.task.dueTime,
                 recurrence: state.task.recurrence,
-                reminder: state.task.reminder,
                 notes: state.task.notes,
               }}
             />

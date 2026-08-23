@@ -16,13 +16,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils'
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
-const REMINDER_OPTIONS = [
-  { value: 'none', label: 'No reminder' },
-  { value: '15', label: '15 minutes before' },
-  { value: '30', label: '30 minutes before' },
-  { value: '60', label: '1 hour before' },
-  { value: '1440', label: '1 day before' },
-]
 const RECURRENCE_OPTIONS: { value: 'NONE' | RecurrenceFrequency; label: string }[] = [
   { value: 'NONE', label: 'Does not repeat' },
   { value: 'DAILY', label: 'Daily' },
@@ -71,7 +64,6 @@ export function TaskForm({
       dueDate: null,
       dueTime: null,
       recurrence: null,
-      reminder: null,
       notes: null,
       ...defaultValues,
     },
@@ -320,35 +312,6 @@ export function TaskForm({
                 )
               }}
             />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="task-reminder">Reminder</Label>
-            <Controller
-              control={control}
-              name="reminder"
-              render={({ field }) => (
-                <Select
-                  value={field.value ? String(field.value.offsetMinutes) : 'none'}
-                  onValueChange={(v) =>
-                    field.onChange(v === 'none' ? null : { enabled: true, offsetMinutes: Number(v) })
-                  }
-                  disabled={!dueDate}
-                >
-                  <SelectTrigger id="task-reminder">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {REMINDER_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {!dueDate && <p className="text-xs text-muted-foreground">Set a due date to enable reminders.</p>}
           </div>
 
           <div className="flex flex-col gap-1.5">

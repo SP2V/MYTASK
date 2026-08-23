@@ -41,7 +41,6 @@ describe('categoryRepository', () => {
       dueDate: null,
       dueTime: null,
       recurrence: null,
-      reminder: null,
       notes: null,
     })
 

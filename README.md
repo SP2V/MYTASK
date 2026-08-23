@@ -1,8 +1,8 @@
 # Personal Task Manager
 
 A fast task manager for a single user, signed in with Google. Add tasks, organize
-by category/priority/due date, recurring tasks, calendar view, dashboard, email +
-browser reminders, and full export/import — built to be used every day, not a demo.
+by category/priority/due date, recurring tasks, calendar view, dashboard, and full
+export/import — built to be used every day, not a demo.
 
 ## Structure
 
@@ -22,9 +22,6 @@ There is no backend server process — `frontend/` talks to Supabase directly.
    provider, get your API credentials).
 2. Set up the app — follow **[frontend/README.md](frontend/README.md)**
    (`.env`, `npm install`, `npm run dev`), then sign in with Google.
-3. (Optional) Set up email reminders — also covered in
-   **[backend/README.md](backend/README.md)**, requires deploying the
-   `send-reminder-emails` Edge Function and a Resend account.
 
 ## Features
 
@@ -37,8 +34,6 @@ There is no backend server process — `frontend/` talks to Supabase directly.
 - Calendar with click-to-add and drag-to-reschedule (FullCalendar)
 - Dashboard stats + category/priority breakdown charts (Recharts)
 - Google sign-in (Supabase Auth); every user's data is private, scoped by RLS
-- Browser-notification reminders (15m/30m/1h/1d before due), plus optional
-  server-sent email reminders that fire even when the app is closed
 - Optional Google Calendar sync — tasks with a due date auto-create/update/
   delete a matching event on the user's primary calendar
 - Theme (system/light/dark), configurable defaults, date/time format

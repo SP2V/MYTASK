@@ -74,7 +74,6 @@ describe('importFromFile', () => {
       dueDate: null,
       dueTime: null,
       recurrence: null,
-      reminder: null,
       notes: null,
     })
 
@@ -98,7 +97,6 @@ describe('importFromFile', () => {
         dueTime: null,
         completedAt: null,
         recurrence: null,
-        reminder: null,
         notes: null,
         seriesId: null,
         createdAt: new Date().toISOString(),

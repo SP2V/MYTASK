@@ -23,7 +23,6 @@ describe('taskRepository', () => {
       dueDate: null,
       dueTime: null,
       recurrence: null,
-      reminder: null,
       notes: null,
     })
 
@@ -42,8 +41,7 @@ describe('taskRepository', () => {
         dueDate: null,
         dueTime: null,
         recurrence: null,
-        reminder: null,
-        notes: null,
+          notes: null,
       }),
     ).rejects.toThrow()
   })
@@ -57,7 +55,6 @@ describe('taskRepository', () => {
       dueDate: null,
       dueTime: null,
       recurrence: null,
-      reminder: null,
       notes: null,
     })
 
@@ -87,7 +84,6 @@ describe('taskRepository', () => {
         endDate: null,
         enabled: true,
       },
-      reminder: null,
       notes: null,
     })
 
@@ -111,7 +107,6 @@ describe('taskRepository', () => {
       dueDate: null,
       dueTime: null,
       recurrence: null,
-      reminder: null,
       notes: null,
     })
     await taskRepository.completeTask(task.id)
@@ -132,7 +127,6 @@ describe('taskRepository', () => {
       dueDate: null,
       dueTime: null,
       recurrence: null,
-      reminder: null,
       notes: null,
     })
     await taskRepository.deleteTask(task.id)

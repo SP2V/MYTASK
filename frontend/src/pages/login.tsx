@@ -29,7 +29,7 @@ export default function LoginPage() {
         <CardHeader className="items-center text-center">
           <ListTodo className="size-8 text-primary" aria-hidden="true" />
           <CardTitle>Personal Task Manager</CardTitle>
-          <CardDescription>Sign in to access your tasks and email reminders.</CardDescription>
+          <CardDescription>Sign in to access your tasks.</CardDescription>
         </CardHeader>
         <CardContent>
           <Button className="w-full gap-2" onClick={handleSignIn} disabled={loading || signingIn}>

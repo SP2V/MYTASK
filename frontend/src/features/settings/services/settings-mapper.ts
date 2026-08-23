@@ -8,8 +8,6 @@ export interface SettingsRow {
   week_starts_on: number
   date_format: Settings['dateFormat']
   time_format: Settings['timeFormat']
-  notifications_enabled: boolean
-  email_notifications_enabled: boolean
 }
 
 export function rowToSettings(row: SettingsRow): Settings {
@@ -20,8 +18,6 @@ export function rowToSettings(row: SettingsRow): Settings {
     weekStartsOn: row.week_starts_on,
     dateFormat: row.date_format,
     timeFormat: row.time_format,
-    notificationsEnabled: row.notifications_enabled,
-    emailNotificationsEnabled: row.email_notifications_enabled,
   }
 }
 
@@ -33,7 +29,5 @@ export function settingsToRow(settings: Settings): Omit<SettingsRow, 'id'> {
     week_starts_on: settings.weekStartsOn,
     date_format: settings.dateFormat,
     time_format: settings.timeFormat,
-    notifications_enabled: settings.notificationsEnabled,
-    email_notifications_enabled: settings.emailNotificationsEnabled,
   }
 }

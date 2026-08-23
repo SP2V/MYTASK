@@ -12,7 +12,6 @@ export interface TaskRow {
   due_time: string | null
   completed_at: string | null
   recurrence: Task['recurrence']
-  reminder: Task['reminder']
   notes: string | null
   series_id: string | null
   created_at: string
@@ -36,7 +35,6 @@ export function rowToTask(row: TaskRow): Task {
     dueTime: normalizeTime(row.due_time),
     completedAt: row.completed_at,
     recurrence: row.recurrence,
-    reminder: row.reminder,
     notes: row.notes,
     seriesId: row.series_id,
     createdAt: row.created_at,
@@ -56,7 +54,6 @@ export function taskToRow(task: Task): TaskRow {
     due_time: task.dueTime,
     completed_at: task.completedAt,
     recurrence: task.recurrence,
-    reminder: task.reminder,
     notes: task.notes,
     series_id: task.seriesId,
     created_at: task.createdAt,

@@ -23,7 +23,6 @@ describe('SettingsPage', () => {
     expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument()
     expect(screen.getByText('Appearance')).toBeInTheDocument()
     expect(screen.getByText('Task Defaults')).toBeInTheDocument()
-    expect(screen.getByText('Notifications')).toBeInTheDocument()
     expect(screen.getByText('Data')).toBeInTheDocument()
   })
 

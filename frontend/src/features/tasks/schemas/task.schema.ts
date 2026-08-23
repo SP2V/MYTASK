@@ -36,16 +36,6 @@ export const recurrenceSchema = z
   .strict()
 export type Recurrence = z.infer<typeof recurrenceSchema>
 
-export const REMINDER_OFFSETS = [15, 30, 60, 1440] as const
-
-export const reminderSchema = z
-  .object({
-    enabled: z.boolean(),
-    offsetMinutes: z.number().int().min(0),
-  })
-  .strict()
-export type Reminder = z.infer<typeof reminderSchema>
-
 function requireDueDateForDueTime(task: { dueDate: string | null; dueTime: string | null }) {
   return task.dueTime === null || task.dueDate !== null
 }
@@ -62,7 +52,6 @@ export const taskSchema = z
     dueTime: timeOnlySchema.nullable(),
     completedAt: z.string().datetime({ offset: true }).nullable(),
     recurrence: recurrenceSchema.nullable(),
-    reminder: reminderSchema.nullable(),
     notes: z.string().max(5000).nullable(),
     seriesId: z.string().nullable(),
     createdAt: z.string().datetime({ offset: true }),
@@ -84,7 +73,6 @@ export const taskFormSchema = z
     dueDate: dateOnlySchema.nullable(),
     dueTime: timeOnlySchema.nullable(),
     recurrence: recurrenceSchema.nullable(),
-    reminder: reminderSchema.nullable(),
     notes: z.string().max(5000).nullable(),
   })
   .refine(requireDueDateForDueTime, {
@@ -105,7 +93,6 @@ export const taskUpdateSchema = z
     dueDate: dateOnlySchema.nullable().optional(),
     dueTime: timeOnlySchema.nullable().optional(),
     recurrence: recurrenceSchema.nullable().optional(),
-    reminder: reminderSchema.nullable().optional(),
     notes: z.string().max(5000).nullable().optional(),
     status: taskStatusSchema.optional(),
   })

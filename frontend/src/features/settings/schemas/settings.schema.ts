@@ -21,8 +21,6 @@ export const settingsSchema = z
     weekStartsOn: z.number().int().min(0).max(6).default(0),
     dateFormat: dateFormatSchema.default('MDY'),
     timeFormat: timeFormatSchema.default('H12'),
-    notificationsEnabled: z.boolean().default(false),
-    emailNotificationsEnabled: z.boolean().default(false),
   })
   .strict()
 export type Settings = z.infer<typeof settingsSchema>

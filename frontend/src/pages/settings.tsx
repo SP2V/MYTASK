@@ -1,13 +1,12 @@
 import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Download, Upload, Trash2, BellRing, Mail, CalendarDays } from 'lucide-react'
+import { Download, Upload, Trash2, CalendarDays } from 'lucide-react'
 import { PageHeader } from '@/components/common/page-header'
 import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
@@ -28,11 +27,6 @@ import { tasksQueryKey } from '@/features/tasks/hooks/use-tasks'
 import { settingsRepository } from '@/features/settings/services/settings-repository'
 import { buildExportData, downloadExportFile, importFromFile, type ImportResult } from '@/features/settings/services/backup-service'
 import { clearAllData } from '@/features/settings/services/clear-all-data'
-import {
-  getNotificationPermission,
-  isNotificationSupported,
-  requestNotificationPermission,
-} from '@/features/notifications/services/notification-service'
 import type { Theme, DateFormatOption, TimeFormatOption } from '@/features/settings/schemas/settings.schema'
 import type { TaskPriority } from '@/features/tasks/schemas/task.schema'
 
@@ -98,21 +92,6 @@ export default function SettingsPage() {
       setClearOpen(false)
     }
   }
-
-  const handleEnableNotifications = async () => {
-    const permission = await requestNotificationPermission()
-    if (permission === 'granted') {
-      await update({ notificationsEnabled: true })
-      toast.success('Notifications enabled')
-    } else if (permission === 'unsupported') {
-      toast.error('Notifications are not supported in this browser.')
-    } else {
-      toast.error('Notification permission was not granted.')
-      await update({ notificationsEnabled: false })
-    }
-  }
-
-  const notificationPermission = getNotificationPermission()
 
   const handleConnectCalendar = async () => {
     try {
@@ -260,62 +239,6 @@ export default function SettingsPage() {
                 </SelectContent>
               </Select>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Notifications</CardTitle>
-            <CardDescription>
-              Browser notifications only fire while this app tab is open and permission is
-              granted — they are not guaranteed while offline or closed.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-sm">
-              <BellRing className="size-4 text-muted-foreground" aria-hidden="true" />
-              {!isNotificationSupported() && <span className="text-muted-foreground">Not supported in this browser</span>}
-              {isNotificationSupported() && notificationPermission === 'denied' && (
-                <span className="text-muted-foreground">Permission denied — enable it in browser settings</span>
-              )}
-              {isNotificationSupported() && notificationPermission !== 'denied' && (
-                <span className="text-muted-foreground">
-                  {settings.notificationsEnabled ? 'Enabled' : 'Disabled'}
-                </span>
-              )}
-            </div>
-            {isNotificationSupported() && notificationPermission !== 'denied' ? (
-              <Switch
-                checked={settings.notificationsEnabled}
-                onCheckedChange={(checked) => (checked ? handleEnableNotifications() : update({ notificationsEnabled: false }))}
-                aria-label="Toggle notifications"
-              />
-            ) : (
-              <Switch checked={false} disabled aria-label="Notifications unavailable" />
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Email Reminders</CardTitle>
-            <CardDescription>
-              Sent by the server on a schedule, even when this app isn't open — as long as a
-              reminder is enabled on the task.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-sm">
-              <Mail className="size-4 text-muted-foreground" aria-hidden="true" />
-              <span className="text-muted-foreground">
-                {settings.emailNotificationsEnabled ? 'Enabled' : 'Disabled'}
-              </span>
-            </div>
-            <Switch
-              checked={settings.emailNotificationsEnabled}
-              onCheckedChange={(checked) => update({ emailNotificationsEnabled: checked })}
-              aria-label="Toggle email reminders"
-            />
           </CardContent>
         </Card>
 

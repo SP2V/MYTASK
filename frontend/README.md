@@ -18,14 +18,11 @@ Data lives in Supabase — see [`../backend/README.md`](../backend/README.md) fo
   breakdown by category and priority (Recharts)
 - **Google sign-in** — Supabase Auth (Google OAuth); every user's tasks, categories,
   and settings are private, scoped by row-level security
-- **Reminders** — browser notifications 15m/30m/1h/1d before a task is due
-  (see [Notification limitations](#notification-limitations)), plus an optional
-  server-sent email reminder for the same window that fires even when the app is closed
 - **Google Calendar sync** — optional, per-user opt-in (Settings → Google Calendar →
   Connect); tasks with a due date are created/updated/deleted as events on the
   user's primary calendar automatically after every save
 - **Settings** — theme (system/light/dark), default priority/category, week start,
-  date/time format, browser + email notifications, Google Calendar connection
+  date/time format, Google Calendar connection
 - **Export / Import** — versioned JSON backup, validated on import, never corrupts
   existing data on a bad file
 
@@ -102,24 +99,6 @@ comment in `src/features/settings/services/backup-service.ts` for the tradeoff.
 **Clear All Data** (Settings) permanently wipes everything in Supabase and reseeds the
 default categories; it requires an explicit confirmation dialog.
 
-## Notification Limitations
-
-Reminders use the browser [Notification API](https://developer.mozilla.org/en-US/docs/Web/API/Notification).
-This has real limits, and the app does not pretend otherwise:
-
-- Requires the user to explicitly grant permission; if denied or dismissed, no
-  notification will fire and the Settings page reflects that.
-- Not supported in every browser/environment — the app detects this and disables
-  the toggle accordingly.
-- Reminders are checked **only while the app tab is open** (a 30-second in-memory
-  poll). There is no service worker or background scheduling, so a reminder will not
-  fire while the browser is closed or the tab isn't loaded.
-- Reminder "already notified" state is tracked in memory only, so reloading the app
-  within a reminder's trigger window may re-show it once.
-
-If reliable background notifications matter for your workflow, treat in-app reminders
-as a convenience layer on top of checking Today/Overdue yourself, not a guarantee.
-
 ## Project Structure
 
 ```text
@@ -136,8 +115,7 @@ src/
 │   ├── categories/   # Category CRUD
 │   ├── calendar/      # FullCalendar integration
 │   ├── dashboard/     # Stats + charts
-│   ├── settings/      # Theme, preferences, export/import, backup service, clear-all-data
-│   └── notifications/ # Browser Notification wrapper + reminder scheduler
+│   └── settings/      # Theme, preferences, export/import, backup service, clear-all-data
 ├── lib/             # Supabase client, date utilities, id generation, shared constants
 ├── pages/           # Route-level page components
 ├── hooks/           # Cross-feature hooks (debounce, media query)
