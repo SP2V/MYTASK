@@ -88,19 +88,35 @@ async function deleteEvent(accessToken: string, calendarId: string, eventId: str
   }
 }
 
+// The frontend calls this function directly from the browser via
+// supabase.functions.invoke(), which triggers a CORS preflight (OPTIONS).
+// Without these headers on every response, the browser blocks the request
+// before it ever reaches this handler.
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
   const authHeader = req.headers.get('Authorization')
-  if (!authHeader) return new Response(JSON.stringify({ error: 'Missing Authorization' }), { status: 401 })
+  if (!authHeader)
+    return new Response(JSON.stringify({ error: 'Missing Authorization' }), {
+      status: 401,
+      headers: corsHeaders,
+    })
 
   const asUser = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } })
   const {
     data: { user },
   } = await asUser.auth.getUser()
-  if (!user) return new Response(JSON.stringify({ error: 'Not authenticated' }), { status: 401 })
+  if (!user)
+    return new Response(JSON.stringify({ error: 'Not authenticated' }), { status: 401, headers: corsHeaders })
 
   const admin = createClient(supabaseUrl, serviceRoleKey)
 
@@ -112,7 +128,10 @@ Deno.serve(async (req) => {
 
   if (!token) {
     // Calendar isn't connected for this user — nothing to do, not an error.
-    return new Response(JSON.stringify({ skipped: true, reason: 'not_connected' }), { status: 200 })
+    return new Response(JSON.stringify({ skipped: true, reason: 'not_connected' }), {
+      status: 200,
+      headers: corsHeaders,
+    })
   }
 
   const body = (await req.json()) as
@@ -124,7 +143,7 @@ Deno.serve(async (req) => {
 
     if (body.operation === 'delete') {
       await deleteEvent(accessToken, (token as TokenRow).calendar_id, body.googleEventId)
-      return new Response(JSON.stringify({ ok: true }), { status: 200 })
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: corsHeaders })
     }
 
     const { data: task } = await admin
@@ -134,7 +153,7 @@ Deno.serve(async (req) => {
       .maybeSingle()
 
     if (!task || (task as TaskRow).user_id !== user.id) {
-      return new Response(JSON.stringify({ error: 'Task not found' }), { status: 404 })
+      return new Response(JSON.stringify({ error: 'Task not found' }), { status: 404, headers: corsHeaders })
     }
     const taskRow = task as TaskRow
     const calendarId = (token as TokenRow).calendar_id
@@ -145,7 +164,10 @@ Deno.serve(async (req) => {
         await deleteEvent(accessToken, calendarId, taskRow.google_event_id)
         await admin.from('tasks').update({ google_event_id: null }).eq('id', taskRow.id)
       }
-      return new Response(JSON.stringify({ ok: true, action: 'skipped_or_removed' }), { status: 200 })
+      return new Response(JSON.stringify({ ok: true, action: 'skipped_or_removed' }), {
+        status: 200,
+        headers: corsHeaders,
+      })
     }
 
     const eventBody = toEventBody(taskRow)
@@ -159,7 +181,10 @@ Deno.serve(async (req) => {
         },
       )
       if (!res.ok) throw new Error(`Calendar event update failed: ${res.status} ${await res.text()}`)
-      return new Response(JSON.stringify({ ok: true, action: 'updated' }), { status: 200 })
+      return new Response(JSON.stringify({ ok: true, action: 'updated' }), {
+        status: 200,
+        headers: corsHeaders,
+      })
     }
 
     const res = await fetch(
@@ -174,11 +199,14 @@ Deno.serve(async (req) => {
     const created = (await res.json()) as { id: string }
     await admin.from('tasks').update({ google_event_id: created.id }).eq('id', taskRow.id)
 
-    return new Response(JSON.stringify({ ok: true, action: 'created' }), { status: 200 })
+    return new Response(JSON.stringify({ ok: true, action: 'created' }), {
+      status: 200,
+      headers: corsHeaders,
+    })
   } catch (err) {
-    return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : String(err) }),
-      { status: 500 },
-    )
+    return new Response(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }), {
+      status: 500,
+      headers: corsHeaders,
+    })
   }
 })
