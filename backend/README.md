@@ -31,6 +31,8 @@ user's data, and the anon key alone grants no access to any table.
      storage and the `tasks.google_event_id` link column
    - `supabase/migrations/0005_remove_reminders.sql` — drops the browser/email
      reminder columns, trigger, and cron job (the feature was removed)
+   - `supabase/migrations/0006_postits.sql` — creates `postits` for the
+     Post-it board (kept separate from `tasks`)
    (Or, with the Supabase CLI: `supabase db push`.)
 3. **Enable the Google provider:**
    - In [Google Cloud Console](https://console.cloud.google.com/apis/credentials),
@@ -90,6 +92,8 @@ Function (via the service role key) and the owning user (via RLS) can read it.
   default_priority, default_category_id, week_starts_on, date_format, time_format
 - `google_calendar_tokens` — one row per user who connected Calendar sync:
   user_id (PK), refresh_token, access_token, access_token_expires_at, calendar_id
+- `postits` — id, user_id, content, color, created_at, updated_at (Post-it
+  board notes; independent of `tasks`)
 
 `recurrence` is stored as `jsonb` — it matches the shape of the `Recurrence`
 type in `frontend/src/features/tasks/schemas/task.schema.ts` verbatim, so no

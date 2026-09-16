@@ -1,5 +1,5 @@
 import { PageHeader } from '@/components/common/page-header'
-import { PostitBoard } from '@/features/tasks/components/postit-board'
+import { PostitBoard } from '@/features/postits/components/postit-board'
 
 export default function PostitPage() {
   return (
