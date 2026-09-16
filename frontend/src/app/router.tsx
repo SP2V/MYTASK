@@ -9,6 +9,7 @@ import OverduePage from '@/pages/overdue'
 import CompletedPage from '@/pages/completed'
 import CalendarPage from '@/pages/calendar'
 import CategoriesPage from '@/pages/categories'
+import PostitPage from '@/pages/postit'
 import SettingsPage from '@/pages/settings'
 
 export function AppRouter() {
@@ -25,6 +26,7 @@ export function AppRouter() {
           <Route path="/completed" element={<CompletedPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/categories" element={<CategoriesPage />} />
+          <Route path="/postit" element={<PostitPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>

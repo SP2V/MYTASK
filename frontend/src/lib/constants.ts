@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Calendar,
   FolderKanban,
+  StickyNote,
   Settings,
   type LucideIcon,
 } from 'lucide-react'
@@ -26,6 +27,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/completed', label: 'Completed', icon: CheckCircle2 },
   { to: '/calendar', label: 'Calendar', icon: Calendar },
   { to: '/categories', label: 'Categories', icon: FolderKanban },
+  { to: '/postit', label: 'Post-it', icon: StickyNote },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
 
