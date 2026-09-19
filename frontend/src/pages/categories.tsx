@@ -70,8 +70,9 @@ export default function CategoriesPage() {
     <>
       <PageHeader
         title="Categories"
+        description="Organize your tasks by project, area, or context."
         action={
-          <Button className="gap-2" onClick={() => setDialogState({ mode: 'create' })}>
+          <Button className="gap-2 rounded-xl shadow-xs" onClick={() => setDialogState({ mode: 'create' })}>
             <Plus className="size-4" />
             Add Category
           </Button>
@@ -79,48 +80,52 @@ export default function CategoriesPage() {
       />
 
       {categories === undefined ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full" />
+            <Skeleton key={i} className="h-20 w-full rounded-xl" />
           ))}
         </div>
       ) : categories.length === 0 ? (
         <EmptyState title="No categories yet" description="Create one to start organizing tasks." />
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           {categories.map((category) => (
             <div
               key={category.id}
-              className="group flex items-center gap-3 rounded-lg border bg-card px-4 py-3"
+              className="group flex items-center gap-3.5 rounded-xl border border-border/70 bg-card/75 p-4 shadow-xs backdrop-blur-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:shadow-sm"
             >
-              <span
-                className={cn('size-3 shrink-0 rounded-full', CATEGORY_COLOR_CLASSES[category.color])}
-                aria-hidden="true"
-              />
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent/60">
+                <span
+                  className={cn('size-3.5 rounded-full shadow-xs ring-2 ring-background', CATEGORY_COLOR_CLASSES[category.color])}
+                  aria-hidden="true"
+                />
+              </div>
+
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{category.name}</p>
+                <p className="truncate text-sm font-semibold text-foreground">{category.name}</p>
                 <p className="text-xs text-muted-foreground">
                   {taskCountFor(category.id)} active task{taskCountFor(category.id) === 1 ? '' : 's'}
                 </p>
               </div>
-              <div className="flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+
+              <div className="flex gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="size-8"
+                  className="size-8 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground"
                   aria-label={`Edit ${category.name}`}
                   onClick={() => setDialogState({ mode: 'edit', category })}
                 >
-                  <Pencil className="size-4" />
+                  <Pencil className="size-3.5" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="size-8"
+                  className="size-8 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                   aria-label={`Delete ${category.name}`}
                   onClick={() => setDeleteTarget(category)}
                 >
-                  <Trash2 className="size-4" />
+                  <Trash2 className="size-3.5" />
                 </Button>
               </div>
             </div>
@@ -132,7 +137,7 @@ export default function CategoriesPage() {
         open={dialogState.mode !== 'closed'}
         onOpenChange={(open) => !open && setDialogState({ mode: 'closed' })}
       >
-        <DialogContent>
+        <DialogContent className="rounded-2xl">
           <DialogHeader>
             <DialogTitle>{dialogState.mode === 'edit' ? 'Edit Category' : 'Add Category'}</DialogTitle>
           </DialogHeader>

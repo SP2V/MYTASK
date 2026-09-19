@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { MoreHorizontal, Repeat, Clock, Pencil, Copy, Archive, Trash2, RotateCcw } from 'lucide-react'
-import type { Task } from '@/features/tasks/schemas/task.schema'
+import type { Task, TaskPriority } from '@/features/tasks/schemas/task.schema'
 import { taskRepository } from '@/features/tasks/services/task-repository'
 import { tasksQueryKey } from '@/features/tasks/hooks/use-tasks'
 import { useTaskDialog } from '@/features/tasks/components/task-dialog-provider'
@@ -25,6 +25,13 @@ import { ConfirmDialog } from '@/components/common/confirm-dialog'
 
 interface TaskItemProps {
   task: Task
+}
+
+const PRIORITY_BORDER_CLASSES: Record<TaskPriority, string> = {
+  URGENT: 'border-l-rose-500',
+  HIGH: 'border-l-amber-500',
+  MEDIUM: 'border-l-blue-500',
+  LOW: 'border-l-slate-400 dark:border-l-slate-600',
 }
 
 export function TaskItem({ task }: TaskItemProps) {
@@ -90,74 +97,88 @@ export function TaskItem({ task }: TaskItemProps) {
   return (
     <div
       className={cn(
-        'group flex items-start gap-3 rounded-lg border bg-card px-4 py-3 transition-colors hover:border-foreground/20',
-        isCompleted && 'opacity-60',
+        'group relative flex items-start gap-3.5 rounded-xl border border-l-4 border-border/70 bg-card/75 px-4 py-3.5 shadow-2xs backdrop-blur-xs transition-all duration-200 hover:-translate-y-0.2 hover:border-border hover:bg-card hover:shadow-xs',
+        PRIORITY_BORDER_CLASSES[task.priority],
+        isCompleted && 'opacity-60 bg-muted/25 border-l-muted-foreground/40',
       )}
     >
       <Checkbox
         checked={isCompleted}
         onCheckedChange={handleToggleComplete}
         aria-label={isCompleted ? `Reopen ${task.title}` : `Complete ${task.title}`}
-        className="mt-0.5"
+        className="mt-0.5 size-4.5 rounded-md border-border transition-transform active:scale-90"
       />
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start justify-between gap-3">
           <button
             type="button"
             onClick={() => openEdit(task)}
             className={cn(
-              'text-left text-sm font-medium hover:underline',
-              isCompleted && 'line-through',
+              'text-left text-sm font-semibold tracking-tight text-foreground transition-colors hover:text-primary',
+              isCompleted && 'line-through text-muted-foreground font-normal',
             )}
           >
             {task.title}
           </button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-7 shrink-0 opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
-                aria-label={`More actions for ${task.title}`}
-              >
-                <MoreHorizontal className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => openEdit(task)}>
-                <Pencil /> Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDuplicate}>
-                <Copy /> Duplicate
-              </DropdownMenuItem>
-              {isCompleted && (
-                <DropdownMenuItem onClick={handleToggleComplete}>
-                  <RotateCcw /> Reopen
+          {/* Quick Actions & Menu */}
+          <div className="flex items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+              aria-label={`Edit ${task.title}`}
+              onClick={() => openEdit(task)}
+            >
+              <Pencil className="size-3.5" />
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                  aria-label={`More actions for ${task.title}`}
+                >
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40 rounded-xl shadow-lg">
+                <DropdownMenuItem onClick={() => openEdit(task)}>
+                  <Pencil className="size-3.5" /> Edit
                 </DropdownMenuItem>
-              )}
-              {!isArchived && (
-                <DropdownMenuItem onClick={handleArchive}>
-                  <Archive /> Archive
+                <DropdownMenuItem onClick={handleDuplicate}>
+                  <Copy className="size-3.5" /> Duplicate
                 </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
-                <Trash2 /> Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                {isCompleted && (
+                  <DropdownMenuItem onClick={handleToggleComplete}>
+                    <RotateCcw className="size-3.5" /> Reopen
+                  </DropdownMenuItem>
+                )}
+                {!isArchived && (
+                  <DropdownMenuItem onClick={handleArchive}>
+                    <Archive className="size-3.5" /> Archive
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
+                  <Trash2 className="size-3.5" /> Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {task.description && (
-          <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{task.description}</p>
+          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{task.description}</p>
         )}
 
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
           <Badge
             variant="outline"
-            className="gap-1"
+            className="gap-1.5 rounded-md border-border/80 bg-background/50 px-2 py-0.5 text-[11px] font-medium shadow-xs"
             style={{ borderColor: PRIORITY_META[task.priority].colorVar }}
           >
             <span
@@ -169,7 +190,7 @@ export function TaskItem({ task }: TaskItemProps) {
           </Badge>
 
           {category && (
-            <Badge variant="outline" className="gap-1">
+            <Badge variant="outline" className="gap-1.5 rounded-md border-border/80 bg-background/50 px-2 py-0.5 text-[11px] font-medium shadow-xs">
               <span
                 className={cn('size-1.5 rounded-full', CATEGORY_COLOR_CLASSES[category.color])}
                 aria-hidden="true"
@@ -179,7 +200,10 @@ export function TaskItem({ task }: TaskItemProps) {
           )}
 
           {task.dueDate && (
-            <Badge variant={overdue ? 'destructive' : 'secondary'} className="gap-1">
+            <Badge
+              variant={overdue ? 'destructive' : 'secondary'}
+              className="gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium shadow-xs"
+            >
               <Clock className="size-3" />
               {formatDateShort(task.dueDate)}
               {task.dueTime && ` · ${formatTimeForDisplay(task.dueTime, settings.timeFormat)}`}
@@ -187,8 +211,8 @@ export function TaskItem({ task }: TaskItemProps) {
           )}
 
           {task.recurrence?.enabled && (
-            <Badge variant="outline" className="gap-1">
-              <Repeat className="size-3" />
+            <Badge variant="outline" className="gap-1.5 rounded-md border-border/80 bg-background/50 px-2 py-0.5 text-[11px] font-medium shadow-xs">
+              <Repeat className="size-3 text-muted-foreground" />
               Repeats
             </Badge>
           )}

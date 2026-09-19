@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Copy, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Copy, Pencil, Plus, Trash2, CheckCircle2 } from 'lucide-react'
 import { projectRepository } from '@/features/projects/services/project-repository'
 import { projectsQueryKey } from '@/features/projects/hooks/use-projects'
 import { projectProgress, type Project, type ProjectEditValues } from '@/features/projects/schemas/project.schema'
@@ -93,74 +93,93 @@ export function ProjectCard({ project }: ProjectCardProps) {
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border bg-card p-4">
+    <div className="flex flex-col gap-4.5 rounded-xl border border-border/70 bg-card/80 p-5 shadow-xs backdrop-blur-xs transition-all duration-200 hover:border-border hover:shadow-sm">
+      {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold">{project.title}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="truncate text-base font-bold tracking-tight text-foreground">{project.title}</h3>
+            {complete && (
+              <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="size-3" /> Done
+              </span>
+            )}
+          </div>
           {project.description && (
-            <p className="mt-0.5 text-sm text-muted-foreground">{project.description}</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{project.description}</p>
           )}
         </div>
         <div className="flex shrink-0 gap-1">
           <Button
             variant="ghost"
             size="icon"
-            className="size-8 text-muted-foreground"
+            className="size-7.5 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
             aria-label={`Duplicate ${project.title}`}
             onClick={handleDuplicate}
           >
-            <Copy className="size-4" />
+            <Copy className="size-3.5" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="size-8 text-muted-foreground"
+            className="size-7.5 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
             aria-label={`Edit ${project.title}`}
             onClick={() => setEditOpen(true)}
           >
-            <Pencil className="size-4" />
+            <Pencil className="size-3.5" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="size-8 text-muted-foreground hover:text-destructive"
+            className="size-7.5 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
             aria-label={`Delete ${project.title}`}
             onClick={() => setDeleteOpen(true)}
           >
-            <Trash2 className="size-4" />
+            <Trash2 className="size-3.5" />
           </Button>
         </div>
       </div>
 
+      {/* Progress Bar */}
       <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
           <span>
             {done} of {total} step{total === 1 ? '' : 's'} done
           </span>
-          <span className={cn(complete && 'font-medium text-primary')}>{percent}%</span>
+          <span className={cn('tabular-nums font-semibold', complete ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground')}>
+            {percent}%
+          </span>
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
           <div
-            className={cn('h-full rounded-full bg-primary transition-all', complete && 'bg-green-600')}
+            className={cn(
+              'h-full rounded-full transition-all duration-300',
+              complete ? 'bg-emerald-500' : 'bg-primary',
+            )}
             style={{ width: `${percent}%` }}
           />
         </div>
       </div>
 
+      {/* Checklist */}
       <ul className="flex flex-col gap-2">
         {project.steps.map((step, index) => (
-          <li key={step.id} className="group flex items-center gap-2.5">
+          <li
+            key={step.id}
+            className="group flex items-center gap-2.5 rounded-lg px-1.5 py-1 transition-colors hover:bg-accent/40"
+          >
             <Checkbox
               id={`step-${step.id}`}
               checked={step.isDone}
               onCheckedChange={(checked) => handleToggle(step.id, checked === true)}
               aria-label={`Mark step ${index + 1} as ${step.isDone ? 'not done' : 'done'}`}
+              className="size-4 rounded"
             />
             <label
               htmlFor={`step-${step.id}`}
               className={cn(
-                'flex-1 text-sm',
-                step.isDone && 'text-muted-foreground line-through',
+                'flex-1 text-xs font-medium cursor-pointer transition-colors',
+                step.isDone ? 'text-muted-foreground line-through' : 'text-foreground',
               )}
             >
               {step.title}
@@ -170,15 +189,16 @@ export function ProjectCard({ project }: ProjectCardProps) {
               onClick={() => handleDeleteStep(step.id)}
               aria-label={`Remove step ${index + 1}`}
               disabled={project.steps.length <= 1}
-              className="opacity-0 text-muted-foreground hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100 disabled:pointer-events-none disabled:opacity-0"
+              className="opacity-0 text-muted-foreground hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100 disabled:pointer-events-none disabled:opacity-0 transition-opacity"
             >
-              <Trash2 className="size-3.5" />
+              <Trash2 className="size-3" />
             </button>
           </li>
         ))}
       </ul>
 
-      <div className="flex gap-2">
+      {/* Add Step */}
+      <div className="flex gap-2 pt-1">
         <Input
           value={newStep}
           onChange={(e) => setNewStep(e.target.value)}
@@ -189,10 +209,15 @@ export function ProjectCard({ project }: ProjectCardProps) {
             }
           }}
           placeholder="Add a step…"
-          className="h-9"
+          className="h-8.5 rounded-lg border-border/70 text-xs"
         />
-        <Button variant="outline" size="sm" className="h-9 shrink-0 gap-1.5" onClick={handleAddStep}>
-          <Plus className="size-4" />
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8.5 shrink-0 gap-1.5 rounded-lg border-border/70 text-xs"
+          onClick={handleAddStep}
+        >
+          <Plus className="size-3.5" />
           Add
         </Button>
       </div>
@@ -207,7 +232,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
       />
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
+        <DialogContent className="rounded-2xl">
           <DialogHeader>
             <DialogTitle>Edit Project</DialogTitle>
           </DialogHeader>

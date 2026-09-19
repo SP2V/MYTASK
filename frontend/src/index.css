@@ -4,59 +4,59 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --radius: 0.75rem;
+  --background: oklch(0.985 0.003 247.8);
+  --foreground: oklch(0.145 0.008 260);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.145 0.008 260);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --success: oklch(0.6 0.15 145);
-  --success-foreground: oklch(0.985 0 0);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --priority-low: oklch(0.7 0.02 240);
-  --priority-medium: oklch(0.75 0.15 90);
-  --priority-high: oklch(0.7 0.19 45);
-  --priority-urgent: oklch(0.6 0.22 25);
+  --popover-foreground: oklch(0.145 0.008 260);
+  --primary: oklch(0.22 0.04 265);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.96 0.006 260);
+  --secondary-foreground: oklch(0.2 0.01 260);
+  --muted: oklch(0.96 0.006 260);
+  --muted-foreground: oklch(0.5 0.015 260);
+  --accent: oklch(0.95 0.01 260);
+  --accent-foreground: oklch(0.2 0.01 260);
+  --destructive: oklch(0.58 0.23 27);
+  --destructive-foreground: oklch(0.99 0 0);
+  --success: oklch(0.62 0.16 145);
+  --success-foreground: oklch(0.99 0 0);
+  --border: oklch(0.91 0.008 260);
+  --input: oklch(0.91 0.008 260);
+  --ring: oklch(0.55 0.12 260);
+  --priority-low: oklch(0.65 0.03 240);
+  --priority-medium: oklch(0.65 0.16 240);
+  --priority-high: oklch(0.72 0.18 55);
+  --priority-urgent: oklch(0.62 0.22 25);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --success: oklch(0.65 0.15 145);
-  --success-foreground: oklch(0.145 0 0);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 18%);
-  --ring: oklch(0.556 0 0);
-  --priority-low: oklch(0.6 0.02 240);
-  --priority-medium: oklch(0.75 0.15 90);
-  --priority-high: oklch(0.7 0.19 45);
+  --background: oklch(0.115 0.015 260);
+  --foreground: oklch(0.985 0.005 260);
+  --card: oklch(0.155 0.018 260);
+  --card-foreground: oklch(0.985 0.005 260);
+  --popover: oklch(0.155 0.018 260);
+  --popover-foreground: oklch(0.985 0.005 260);
+  --primary: oklch(0.92 0.04 260);
+  --primary-foreground: oklch(0.12 0.015 260);
+  --secondary: oklch(0.19 0.02 260);
+  --secondary-foreground: oklch(0.985 0.005 260);
+  --muted: oklch(0.19 0.02 260);
+  --muted-foreground: oklch(0.65 0.015 260);
+  --accent: oklch(0.21 0.025 260);
+  --accent-foreground: oklch(0.985 0.005 260);
+  --destructive: oklch(0.68 0.2 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --success: oklch(0.68 0.16 145);
+  --success-foreground: oklch(0.12 0.015 260);
+  --border: oklch(0.24 0.02 260 / 70%);
+  --input: oklch(0.25 0.02 260 / 80%);
+  --ring: oklch(0.6 0.12 260);
+  --priority-low: oklch(0.6 0.03 240);
+  --priority-medium: oklch(0.68 0.15 240);
+  --priority-high: oklch(0.72 0.18 55);
   --priority-urgent: oklch(0.65 0.22 25);
 }
 
@@ -97,7 +97,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
     position: relative;
     isolation: isolate;
     font-feature-settings:
@@ -114,10 +114,9 @@ body::before {
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(48rem 34rem at 8% -8%, color-mix(in oklch, var(--primary) 20%, transparent), transparent 60%),
-    radial-gradient(44rem 36rem at 108% 12%, color-mix(in oklch, var(--priority-medium) 22%, transparent), transparent 60%),
-    radial-gradient(50rem 42rem at 45% 115%, color-mix(in oklch, var(--priority-urgent) 16%, transparent), transparent 60%),
-    radial-gradient(38rem 30rem at 95% 95%, color-mix(in oklch, var(--priority-low) 20%, transparent), transparent 60%);
+    radial-gradient(55rem 38rem at 10% -5%, color-mix(in oklch, var(--primary) 8%, transparent), transparent 70%),
+    radial-gradient(45rem 30rem at 90% 10%, color-mix(in oklch, var(--priority-medium) 7%, transparent), transparent 60%),
+    radial-gradient(50rem 35rem at 50% 105%, color-mix(in oklch, var(--primary) 5%, transparent), transparent 70%);
   pointer-events: none;
 }
 

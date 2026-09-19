@@ -4,7 +4,7 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium transition-all duration-150 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background active:scale-[0.98]",
   {
     variants: {
       variant: {
@@ -12,16 +12,16 @@ const buttonVariants = cva(
         destructive:
           'bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90',
         outline:
-          'border border-white/50 bg-white/30 shadow-xs backdrop-blur-sm hover:bg-accent/60 hover:text-accent-foreground dark:border-white/10 dark:bg-white/5',
+          'border border-border/80 bg-card/60 shadow-2xs backdrop-blur-xs hover:bg-accent hover:text-accent-foreground hover:border-border dark:border-border/60 dark:bg-card/40',
         secondary:
-          'border border-white/40 bg-secondary/60 text-secondary-foreground shadow-xs backdrop-blur-sm hover:bg-secondary/80 dark:border-white/10',
-        ghost: 'hover:bg-accent/60 hover:text-accent-foreground',
+          'border border-border/60 bg-secondary/80 text-secondary-foreground shadow-2xs hover:bg-secondary dark:border-border/40',
+        ghost: 'hover:bg-accent/70 hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {
         default: 'h-9 px-4 py-2',
-        sm: 'h-8 rounded-md px-3 text-xs',
-        lg: 'h-10 rounded-md px-6',
+        sm: 'h-8 rounded-lg px-3 text-xs',
+        lg: 'h-10.5 rounded-xl px-6',
         icon: 'h-9 w-9',
       },
     },
