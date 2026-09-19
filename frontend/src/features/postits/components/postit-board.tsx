@@ -99,7 +99,7 @@ function NoteCard({ postit, dragging, onDragStart, onDragEnd }: NoteCardProps) {
       onDragEnd={onDragEnd}
       style={{ transform: `rotate(${rotation}deg)` }}
       className={cn(
-        'group relative flex h-44 w-44 cursor-grab flex-col rounded-xl border p-3.5 shadow-md backdrop-blur-xs transition-all duration-200 active:cursor-grabbing hover:scale-102 hover:shadow-lg',
+        'group relative flex h-48 w-48 cursor-grab flex-col rounded-2xl border p-4 shadow-md backdrop-blur-xs transition-all duration-200 active:cursor-grabbing hover:scale-102 hover:shadow-xl',
         colorStyle.bg,
         colorStyle.border,
         dragging && 'opacity-25 scale-95 shadow-none',
@@ -108,21 +108,22 @@ function NoteCard({ postit, dragging, onDragStart, onDragEnd }: NoteCardProps) {
       {/* Tape decoration at top */}
       <div
         className={cn(
-          'absolute -top-2 left-1/2 h-3.5 w-12 -translate-x-1/2 rounded-xs shadow-2xs backdrop-blur-xs',
+          'absolute -top-2.5 left-1/2 h-4 w-14 -translate-x-1/2 rounded-xs shadow-2xs backdrop-blur-xs',
           colorStyle.tape,
         )}
       />
 
-      <div className="flex items-center justify-between pb-1.5 opacity-50 transition-opacity group-hover:opacity-100">
-        <Pin className="size-3 -rotate-45" />
-        <span className="text-[9px] font-mono uppercase tracking-widest">Note</span>
+      <div className="flex items-center justify-between px-1 pb-2 opacity-60 transition-opacity group-hover:opacity-100">
+        <Pin className="size-3.5 -rotate-45" />
+        <span className="text-[10px] font-mono uppercase tracking-widest">Note</span>
       </div>
 
-      <Textarea
+      <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
         onBlur={handleBlur}
-        className="h-full w-full resize-none border-none bg-transparent p-0 text-xs font-medium leading-relaxed shadow-none focus-visible:ring-0 placeholder:text-inherit placeholder:opacity-50"
+        placeholder="Write a note…"
+        className="h-full w-full resize-none border-none bg-transparent px-2 py-1.5 text-xs font-medium leading-relaxed text-inherit shadow-none outline-none focus:outline-none focus:ring-0 placeholder:text-inherit placeholder:opacity-50"
       />
     </div>
   )
