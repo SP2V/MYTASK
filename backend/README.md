@@ -33,6 +33,8 @@ user's data, and the anon key alone grants no access to any table.
      reminder columns, trigger, and cron job (the feature was removed)
    - `supabase/migrations/0006_postits.sql` — creates `postits` for the
      Post-it board (kept separate from `tasks`)
+   - `supabase/migrations/0007_projects.sql` — creates `projects` and
+     `project_steps` for multi-step checklist items
    (Or, with the Supabase CLI: `supabase db push`.)
 3. **Enable the Google provider:**
    - In [Google Cloud Console](https://console.cloud.google.com/apis/credentials),
@@ -94,6 +96,9 @@ Function (via the service role key) and the owning user (via RLS) can read it.
   user_id (PK), refresh_token, access_token, access_token_expires_at, calendar_id
 - `postits` — id, user_id, content, color, created_at, updated_at (Post-it
   board notes; independent of `tasks`)
+- `projects` — id, user_id, title, description, created_at, updated_at
+- `project_steps` — id, user_id, project_id (FK → projects, `on delete
+  cascade`), title, order_index, is_done, created_at, updated_at
 
 `recurrence` is stored as `jsonb` — it matches the shape of the `Recurrence`
 type in `frontend/src/features/tasks/schemas/task.schema.ts` verbatim, so no

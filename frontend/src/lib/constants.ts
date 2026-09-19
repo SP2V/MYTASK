@@ -7,6 +7,7 @@ import {
   Calendar,
   FolderKanban,
   StickyNote,
+  ListChecks,
   Settings,
   type LucideIcon,
 } from 'lucide-react'
@@ -28,6 +29,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/calendar', label: 'Calendar', icon: Calendar },
   { to: '/categories', label: 'Categories', icon: FolderKanban },
   { to: '/postit', label: 'Post-it', icon: StickyNote },
+  { to: '/projects', label: 'Projects', icon: ListChecks },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
 
