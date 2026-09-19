@@ -69,13 +69,45 @@ export class ProjectRepository {
 
   async updateProject(
     id: string,
-    input: { title?: string; description?: string | null },
+    existingSteps: ProjectStep[],
+    values: { title: string; description: string | null; steps: { id?: string; title: string }[] },
   ): Promise<void> {
     const { error } = await supabase
       .from(PROJECTS_TABLE)
-      .update({ ...input, updated_at: nowISO() })
+      .update({ title: values.title, description: values.description, updated_at: nowISO() })
       .eq('id', id)
     if (error) throw new Error(error.message)
+
+    const existingById = new Map(existingSteps.map((s) => [s.id, s]))
+    const keptIds = new Set(values.steps.filter((s) => s.id).map((s) => s.id as string))
+    const toDelete = existingSteps.filter((s) => !keptIds.has(s.id)).map((s) => s.id)
+    const toUpsert = values.steps.map((s, index) => {
+      const existing = s.id ? existingById.get(s.id) : undefined
+      return {
+        id: existing ? existing.id : generateId(),
+        project_id: id,
+        title: s.title.trim(),
+        order_index: index,
+        is_done: existing?.isDone ?? false,
+      }
+    })
+
+    if (toDelete.length > 0) {
+      const { error: deleteError } = await supabase.from(STEPS_TABLE).delete().in('id', toDelete)
+      if (deleteError) throw new Error(deleteError.message)
+    }
+    if (toUpsert.length > 0) {
+      const { error: upsertError } = await supabase.from(STEPS_TABLE).upsert(toUpsert)
+      if (upsertError) throw new Error(upsertError.message)
+    }
+  }
+
+  async duplicateProject(project: Project): Promise<Project> {
+    return this.createProject({
+      title: `${project.title} (Copy)`,
+      description: project.description,
+      stepTitles: project.steps.map((s) => s.title),
+    })
   }
 
   async deleteProject(id: string): Promise<void> {

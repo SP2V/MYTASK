@@ -3,22 +3,36 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Plus, X } from 'lucide-react'
 import { z } from 'zod'
-import { projectFormSchema, type ProjectFormValues } from '@/features/projects/schemas/project.schema'
+import { projectEditSchema, type ProjectEditValues } from '@/features/projects/schemas/project.schema'
+import { generateId } from '@/lib/id'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 
+interface StepRow {
+  localKey: string
+  id?: string
+  title: string
+}
+
 interface ProjectFormProps {
-  onSubmit: (values: ProjectFormValues) => Promise<void> | void
+  defaultValues?: ProjectEditValues
+  submitLabel?: string
+  onSubmit: (values: ProjectEditValues) => Promise<void> | void
   onCancel: () => void
 }
 
-const detailsSchema = projectFormSchema.pick({ title: true, description: true })
+const detailsSchema = projectEditSchema.pick({ title: true, description: true })
 type DetailsValues = z.infer<typeof detailsSchema>
 
-export function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
-  const [steps, setSteps] = useState<string[]>(['', ''])
+function toRows(steps?: ProjectEditValues['steps']): StepRow[] {
+  if (!steps || steps.length === 0) return [{ localKey: generateId(), title: '' }, { localKey: generateId(), title: '' }]
+  return steps.map((s) => ({ localKey: s.id ?? generateId(), id: s.id, title: s.title }))
+}
+
+export function ProjectForm({ defaultValues, submitLabel = 'Create Project', onSubmit, onCancel }: ProjectFormProps) {
+  const [rows, setRows] = useState<StepRow[]>(() => toRows(defaultValues?.steps))
   const [stepsError, setStepsError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -28,21 +42,24 @@ export function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
     formState: { errors },
   } = useForm<DetailsValues>({
     resolver: zodResolver(detailsSchema),
-    defaultValues: { title: '', description: null },
+    defaultValues: { title: defaultValues?.title ?? '', description: defaultValues?.description ?? null },
   })
 
-  const updateStep = (index: number, value: string) => {
-    setSteps((prev) => prev.map((s, i) => (i === index ? value : s)))
+  const updateRow = (localKey: string, title: string) => {
+    setRows((prev) => prev.map((r) => (r.localKey === localKey ? { ...r, title } : r)))
   }
 
-  const removeStep = (index: number) => {
-    setSteps((prev) => prev.filter((_, i) => i !== index))
+  const removeRow = (localKey: string) => {
+    setRows((prev) => prev.filter((r) => r.localKey !== localKey))
   }
 
   const submit = handleSubmit(async (details) => {
-    const result = projectFormSchema.safeParse({ ...details, stepTitles: steps })
+    const result = projectEditSchema.safeParse({
+      ...details,
+      steps: rows.map((r) => ({ id: r.id, title: r.title })),
+    })
     if (!result.success) {
-      const issue = result.error.issues.find((i) => i.path[0] === 'stepTitles')
+      const issue = result.error.issues.find((i) => i.path[0] === 'steps')
       setStepsError(issue?.message ?? 'Check your steps')
       return
     }
@@ -81,13 +98,13 @@ export function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
       <div className="flex flex-col gap-1.5">
         <Label>Steps</Label>
         <div className="flex flex-col gap-2">
-          {steps.map((step, index) => (
-            <div key={index} className="flex items-center gap-2">
+          {rows.map((row, index) => (
+            <div key={row.localKey} className="flex items-center gap-2">
               <span className="w-5 shrink-0 text-right text-xs text-muted-foreground">{index + 1}.</span>
               <Input
                 placeholder={`Step ${index + 1}`}
-                value={step}
-                onChange={(e) => updateStep(index, e.target.value)}
+                value={row.title}
+                onChange={(e) => updateRow(row.localKey, e.target.value)}
               />
               <Button
                 type="button"
@@ -95,8 +112,8 @@ export function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
                 size="icon"
                 className="size-8 shrink-0"
                 aria-label={`Remove step ${index + 1}`}
-                onClick={() => removeStep(index)}
-                disabled={steps.length <= 1}
+                onClick={() => removeRow(row.localKey)}
+                disabled={rows.length <= 1}
               >
                 <X className="size-4" />
               </Button>
@@ -113,7 +130,7 @@ export function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
           variant="outline"
           size="sm"
           className="mt-1 w-fit gap-1.5"
-          onClick={() => setSteps((prev) => [...prev, ''])}
+          onClick={() => setRows((prev) => [...prev, { localKey: generateId(), title: '' }])}
         >
           <Plus className="size-4" />
           Add step
@@ -125,7 +142,7 @@ export function ProjectForm({ onSubmit, onCancel }: ProjectFormProps) {
           Cancel
         </Button>
         <Button type="submit" disabled={submitting}>
-          Create Project
+          {submitLabel}
         </Button>
       </div>
     </form>

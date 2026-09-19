@@ -11,16 +11,20 @@ import { useProjects, projectsQueryKey } from '@/features/projects/hooks/use-pro
 import { projectRepository } from '@/features/projects/services/project-repository'
 import { ProjectForm } from '@/features/projects/components/project-form'
 import { ProjectCard } from '@/features/projects/components/project-card'
-import type { ProjectFormValues } from '@/features/projects/schemas/project.schema'
+import type { ProjectEditValues } from '@/features/projects/schemas/project.schema'
 
 export default function ProjectsPage() {
   const projects = useProjects()
   const queryClient = useQueryClient()
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  const handleCreate = async (values: ProjectFormValues) => {
+  const handleCreate = async (values: ProjectEditValues) => {
     try {
-      await projectRepository.createProject(values)
+      await projectRepository.createProject({
+        title: values.title,
+        description: values.description,
+        stepTitles: values.steps.map((s) => s.title),
+      })
       await queryClient.invalidateQueries({ queryKey: projectsQueryKey })
       toast.success('Project created')
       setDialogOpen(false)

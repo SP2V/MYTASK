@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Plus, Trash2 } from 'lucide-react'
+import { Copy, Pencil, Plus, Trash2 } from 'lucide-react'
 import { projectRepository } from '@/features/projects/services/project-repository'
 import { projectsQueryKey } from '@/features/projects/hooks/use-projects'
-import { projectProgress, type Project } from '@/features/projects/schemas/project.schema'
+import { projectProgress, type Project, type ProjectEditValues } from '@/features/projects/schemas/project.schema'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/common/confirm-dialog'
+import { ProjectForm } from '@/features/projects/components/project-form'
 import { cn } from '@/lib/utils'
 
 interface ProjectCardProps {
@@ -19,6 +21,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
   const queryClient = useQueryClient()
   const [newStep, setNewStep] = useState('')
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   const { done, total } = projectProgress(project)
   const percent = total === 0 ? 0 : Math.round((done / total) * 100)
   const complete = total > 0 && done === total
@@ -47,6 +50,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
   }
 
   const handleDeleteStep = async (stepId: string) => {
+    if (project.steps.length <= 1) return
     try {
       await projectRepository.deleteStep(project.id, stepId)
       invalidate()
@@ -67,6 +71,27 @@ export function ProjectCard({ project }: ProjectCardProps) {
     }
   }
 
+  const handleEdit = async (values: ProjectEditValues) => {
+    try {
+      await projectRepository.updateProject(project.id, project.steps, values)
+      invalidate()
+      toast.success('Project updated')
+      setEditOpen(false)
+    } catch {
+      toast.error('Unable to update project. Please try again.')
+    }
+  }
+
+  const handleDuplicate = async () => {
+    try {
+      await projectRepository.duplicateProject(project)
+      invalidate()
+      toast.success('Project duplicated')
+    } catch {
+      toast.error('Unable to duplicate project. Please try again.')
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4 rounded-lg border bg-card p-4">
       <div className="flex items-start justify-between gap-3">
@@ -76,15 +101,35 @@ export function ProjectCard({ project }: ProjectCardProps) {
             <p className="mt-0.5 text-sm text-muted-foreground">{project.description}</p>
           )}
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
-          aria-label={`Delete ${project.title}`}
-          onClick={() => setDeleteOpen(true)}
-        >
-          <Trash2 className="size-4" />
-        </Button>
+        <div className="flex shrink-0 gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 text-muted-foreground"
+            aria-label={`Duplicate ${project.title}`}
+            onClick={handleDuplicate}
+          >
+            <Copy className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 text-muted-foreground"
+            aria-label={`Edit ${project.title}`}
+            onClick={() => setEditOpen(true)}
+          >
+            <Pencil className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 text-muted-foreground hover:text-destructive"
+            aria-label={`Delete ${project.title}`}
+            onClick={() => setDeleteOpen(true)}
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-1.5">
@@ -124,7 +169,8 @@ export function ProjectCard({ project }: ProjectCardProps) {
               type="button"
               onClick={() => handleDeleteStep(step.id)}
               aria-label={`Remove step ${index + 1}`}
-              className="opacity-0 text-muted-foreground hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
+              disabled={project.steps.length <= 1}
+              className="opacity-0 text-muted-foreground hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100 disabled:pointer-events-none disabled:opacity-0"
             >
               <Trash2 className="size-3.5" />
             </button>
@@ -159,6 +205,24 @@ export function ProjectCard({ project }: ProjectCardProps) {
         confirmLabel="Delete"
         onConfirm={handleDeleteProject}
       />
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Project</DialogTitle>
+          </DialogHeader>
+          <ProjectForm
+            defaultValues={{
+              title: project.title,
+              description: project.description,
+              steps: project.steps.map((s) => ({ id: s.id, title: s.title })),
+            }}
+            submitLabel="Save Changes"
+            onCancel={() => setEditOpen(false)}
+            onSubmit={handleEdit}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

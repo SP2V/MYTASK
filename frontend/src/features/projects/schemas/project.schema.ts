@@ -31,6 +31,19 @@ export const projectFormSchema = z.object({
 })
 export type ProjectFormValues = z.infer<typeof projectFormSchema>
 
+export const projectStepInputSchema = z.object({
+  id: z.string().min(1).optional(),
+  title: z.string().trim().min(1, 'Step title is required').max(200),
+})
+export type ProjectStepInput = z.infer<typeof projectStepInputSchema>
+
+export const projectEditSchema = z.object({
+  title: z.string().trim().min(1, 'Title is required').max(200),
+  description: z.string().trim().max(2000).nullable(),
+  steps: z.array(projectStepInputSchema).min(1, 'Add at least one step'),
+})
+export type ProjectEditValues = z.infer<typeof projectEditSchema>
+
 export function projectProgress(project: Pick<Project, 'steps'>): { done: number; total: number } {
   return { done: project.steps.filter((s) => s.isDone).length, total: project.steps.length }
 }
