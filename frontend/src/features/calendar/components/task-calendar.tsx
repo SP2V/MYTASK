@@ -82,7 +82,7 @@ export function TaskCalendar() {
   }
 
   const handleEventClick = (arg: EventClickArg) => {
-    const taskId = arg.event.id.split(VIRTUAL_OCCURRENCE_ID_SEPARATOR)[0]
+    const taskId = arg.event.id.split(VIRTUAL_OCCURRENCE_ID_SEPARATOR)[0] ?? arg.event.id
     const task = taskMap.get(taskId)
     if (task) openEdit(task)
   }
