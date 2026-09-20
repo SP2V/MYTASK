@@ -10,6 +10,7 @@ import { useTasks, tasksQueryKey } from '@/features/tasks/hooks/use-tasks'
 import { useCategories } from '@/features/categories/hooks/use-categories'
 import { useTaskDialog } from '@/features/tasks/components/task-dialog-provider'
 import { taskRepository } from '@/features/tasks/services/task-repository'
+import { computeNextOccurrence } from '@/features/tasks/services/recurrence-engine'
 import { dateToDateOnlyString } from '@/lib/date'
 import type { Task } from '@/features/tasks/schemas/task.schema'
 
@@ -18,6 +19,25 @@ const PRIORITY_COLORS: Record<Task['priority'], string> = {
   HIGH: '#f59e0b',
   MEDIUM: '#3b82f6',
   LOW: '#94a3b8',
+}
+
+const VIRTUAL_OCCURRENCE_ID_SEPARATOR = '::occurrence::'
+// Only the task's own dueDate is a real row; recurrence just describes how the
+// next one gets created on completion. Project future dates here so the
+// calendar shows the whole series instead of a single instance.
+const MAX_PROJECTED_OCCURRENCES = 104
+
+function projectFutureOccurrences(task: Task): string[] {
+  if (!task.recurrence?.enabled || !task.dueDate) return []
+  const dates: string[] = []
+  let current = task.dueDate
+  for (let i = 0; i < MAX_PROJECTED_OCCURRENCES; i++) {
+    const next = computeNextOccurrence(current, task.recurrence)
+    if (!next) break
+    dates.push(next)
+    current = next
+  }
+  return dates
 }
 
 export function TaskCalendar() {
@@ -33,9 +53,9 @@ export function TaskCalendar() {
   const taskMap = useMemo(() => new Map(withDueDate.map((t) => [t.id, t])), [withDueDate])
 
   const events = useMemo(() => {
-    return withDueDate.map((task) => {
+    return withDueDate.flatMap((task) => {
       const category = categories?.find((c) => c.id === task.categoryId)
-      return {
+      const baseEvent = {
         id: task.id,
         title: task.title,
         start: task.dueTime ? `${task.dueDate}T${task.dueTime}` : task.dueDate!,
@@ -45,6 +65,15 @@ export function TaskCalendar() {
         classNames: task.status === 'COMPLETED' ? ['opacity-50', 'line-through'] : [],
         extendedProps: { categoryName: category?.name },
       }
+      const projectedEvents = projectFutureOccurrences(task).map((date) => ({
+        ...baseEvent,
+        id: `${task.id}${VIRTUAL_OCCURRENCE_ID_SEPARATOR}${date}`,
+        start: task.dueTime ? `${date}T${task.dueTime}` : date,
+        startEditable: false,
+        durationEditable: false,
+        classNames: [...baseEvent.classNames, 'opacity-60'],
+      }))
+      return [baseEvent, ...projectedEvents]
     })
   }, [withDueDate, categories])
 
@@ -53,7 +82,8 @@ export function TaskCalendar() {
   }
 
   const handleEventClick = (arg: EventClickArg) => {
-    const task = taskMap.get(arg.event.id)
+    const taskId = arg.event.id.split(VIRTUAL_OCCURRENCE_ID_SEPARATOR)[0]
+    const task = taskMap.get(taskId)
     if (task) openEdit(task)
   }
 
