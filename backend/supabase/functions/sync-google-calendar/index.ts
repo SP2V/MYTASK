@@ -22,6 +22,15 @@ interface TokenRow {
   calendar_id: string
 }
 
+interface RecurrenceRow {
+  frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' | 'CUSTOM'
+  interval: number
+  daysOfWeek: number[] | null
+  dayOfMonth: number | null
+  endDate: string | null
+  enabled: boolean
+}
+
 interface TaskRow {
   id: string
   user_id: string
@@ -30,6 +39,8 @@ interface TaskRow {
   due_date: string | null
   due_time: string | null
   google_event_id: string | null
+  recurrence: RecurrenceRow | null
+  series_id: string | null
 }
 
 async function getValidAccessToken(
@@ -69,13 +80,38 @@ async function getValidAccessToken(
   return json.access_token
 }
 
+const RRULE_WEEKDAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA']
+
+// Google's recurrence array takes RFC 5545 RRULE strings. The app's own
+// `computeNextOccurrence` (recurrence-engine.ts) only ever advances one step
+// at a time, so this mirrors that model as closely as RRULE allows: CUSTOM
+// has no RRULE equivalent and is treated as a day-interval like DAILY, and
+// MONTHLY's day-of-month clamping (recurrence-engine.ts's addMonthsClamped)
+// isn't replicated — RRULE's BYMONTHDAY skips short months instead.
+function buildRecurrenceRule(recurrence: RecurrenceRow, isAllDay: boolean): string[] {
+  const freq = recurrence.frequency === 'CUSTOM' ? 'DAILY' : recurrence.frequency
+  const parts = [`FREQ=${freq}`, `INTERVAL=${Math.max(1, recurrence.interval)}`]
+  if (freq === 'WEEKLY' && recurrence.daysOfWeek && recurrence.daysOfWeek.length > 0) {
+    parts.push(`BYDAY=${recurrence.daysOfWeek.map((d) => RRULE_WEEKDAYS[d]).join(',')}`)
+  }
+  if (freq === 'MONTHLY' && recurrence.dayOfMonth) {
+    parts.push(`BYMONTHDAY=${recurrence.dayOfMonth}`)
+  }
+  if (recurrence.endDate) {
+    const compact = recurrence.endDate.replace(/-/g, '')
+    parts.push(`UNTIL=${isAllDay ? compact : `${compact}T235959Z`}`)
+  }
+  return [`RRULE:${parts.join(';')}`]
+}
+
 function toEventBody(task: TaskRow) {
   const isAllDay = !task.due_time
   const start = isAllDay ? { date: task.due_date } : { dateTime: `${task.due_date}T${task.due_time}:00` }
   const end = isAllDay
     ? { date: task.due_date }
     : { dateTime: `${task.due_date}T${task.due_time}:00` }
-  return { summary: task.title, start, end }
+  const recurrence = task.recurrence?.enabled ? buildRecurrenceRule(task.recurrence, isAllDay) : []
+  return { summary: task.title, start, end, recurrence }
 }
 
 async function deleteEvent(accessToken: string, calendarId: string, eventId: string): Promise<void> {
@@ -148,7 +184,7 @@ Deno.serve(async (req) => {
 
     const { data: task } = await admin
       .from('tasks')
-      .select('id, user_id, title, status, due_date, due_time, google_event_id')
+      .select('id, user_id, title, status, due_date, due_time, google_event_id, recurrence, series_id')
       .eq('id', body.taskId)
       .maybeSingle()
 
@@ -158,9 +194,25 @@ Deno.serve(async (req) => {
     const taskRow = task as TaskRow
     const calendarId = (token as TokenRow).calendar_id
     const isDone = taskRow.status === 'COMPLETED' || taskRow.status === 'ARCHIVED'
+    // A generated continuation of a still-recurring series (series_id set,
+    // recurrence still enabled) is already covered by the series root's
+    // single Google recurring event — nothing new to create for it.
+    const isRecurringContinuation = taskRow.series_id !== null && !!taskRow.recurrence?.enabled
+    const isRecurringMaster = taskRow.series_id === null && !!taskRow.recurrence?.enabled
+
+    if (isRecurringContinuation) {
+      return new Response(JSON.stringify({ ok: true, action: 'skipped_series_continuation' }), {
+        status: 200,
+        headers: corsHeaders,
+      })
+    }
 
     if (isDone || !taskRow.due_date) {
-      if (taskRow.google_event_id) {
+      // Completing one instance of an ongoing series must not delete the
+      // recurring master event — that would wipe every future occurrence
+      // from Google Calendar too. Only remove the event for a one-off task,
+      // or once the series itself has no due date left.
+      if (taskRow.google_event_id && !(isDone && isRecurringMaster)) {
         await deleteEvent(accessToken, calendarId, taskRow.google_event_id)
         await admin.from('tasks').update({ google_event_id: null }).eq('id', taskRow.id)
       }
