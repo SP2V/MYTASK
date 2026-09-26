@@ -51,7 +51,12 @@ export function matchesFilters(task: Task, filters: TaskFilters): boolean {
 export type TaskSortField = 'dueDate' | 'priority' | 'createdAt' | 'updatedAt' | 'title'
 export type SortDirection = 'asc' | 'desc'
 
-export function sortTasks(tasks: Task[], field: TaskSortField, direction: SortDirection): Task[] {
+export function sortTasks(
+  tasks: Task[],
+  field: TaskSortField,
+  direction: SortDirection,
+  priorityTieBreakNewestFirst = false,
+): Task[] {
   const sorted = [...tasks].sort((a, b) => {
     let result = 0
     switch (field) {
@@ -74,6 +79,9 @@ export function sortTasks(tasks: Task[], field: TaskSortField, direction: SortDi
         result = a.title.localeCompare(b.title)
         break
     }
+    if (result === 0 && field === 'priority' && priorityTieBreakNewestFirst) {
+      return b.createdAt.localeCompare(a.createdAt)
+    }
     return direction === 'asc' ? result : -result
   })
   return sorted
@@ -87,13 +95,22 @@ export function queryTasks(
     filters?: TaskFilters
     sortField?: TaskSortField
     sortDirection?: SortDirection
+    priorityTieBreakNewestFirst?: boolean
     today?: string
   },
 ): Task[] {
-  const { view, search = '', filters = {}, sortField = 'dueDate', sortDirection = 'asc', today } = options
+  const {
+    view,
+    search = '',
+    filters = {},
+    sortField = 'dueDate',
+    sortDirection = 'asc',
+    priorityTieBreakNewestFirst = false,
+    today,
+  } = options
   const filtered = tasks
     .filter((t) => matchesView(t, view, today))
     .filter((t) => matchesSearch(t, search))
     .filter((t) => matchesFilters(t, filters))
-  return sortTasks(filtered, sortField, sortDirection)
+  return sortTasks(filtered, sortField, sortDirection, priorityTieBreakNewestFirst)
 }

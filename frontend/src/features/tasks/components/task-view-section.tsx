@@ -13,6 +13,7 @@ interface TaskViewSectionProps {
   emptyState: ReactNode
   defaultSortField?: TaskSortField
   defaultSortDirection?: 'asc' | 'desc'
+  priorityTieBreakNewestFirst?: boolean
   showFilterBar?: boolean
   heading?: string
 }
@@ -22,6 +23,7 @@ export function TaskViewSection({
   emptyState,
   defaultSortField = 'dueDate',
   defaultSortDirection = 'asc',
+  priorityTieBreakNewestFirst = false,
   showFilterBar = true,
   heading,
 }: TaskViewSectionProps) {
@@ -36,6 +38,7 @@ export function TaskViewSection({
         filters: { priorities: state.priorities, categoryIds: state.categoryIds },
         sortField: state.sortField,
         sortDirection: state.sortDirection,
+        priorityTieBreakNewestFirst,
       })
     : undefined
 
