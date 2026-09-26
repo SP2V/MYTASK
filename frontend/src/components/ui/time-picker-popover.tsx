@@ -78,7 +78,19 @@ export function TimePickerPopover({
         <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
           <div>
             <div className="mb-1 text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Hour</div>
-            <div role="listbox" aria-label="Hour" className="h-48 overflow-y-auto rounded-lg border border-border/70 bg-background/40 p-1">
+            <div
+              role="listbox"
+              aria-label="Hour"
+              tabIndex={0}
+              onWheel={(event) => event.stopPropagation()}
+              onKeyDown={(event) => {
+                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                  event.preventDefault()
+                  setHour((current) => ((current - 1 + (event.key === 'ArrowDown' ? 1 : 11)) % 12) + 1)
+                }
+              }}
+              className="h-48 touch-pan-y select-none overflow-y-scroll overscroll-y-contain rounded-lg border border-border/70 bg-background/40 p-1"
+            >
               {Array.from({ length: 12 }, (_, index) => index + 1).map((item) => (
                 <button
                   type="button"
@@ -95,7 +107,19 @@ export function TimePickerPopover({
           </div>
           <div>
             <div className="mb-1 text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Minute</div>
-            <div role="listbox" aria-label="Minute" className="h-48 overflow-y-auto rounded-lg border border-border/70 bg-background/40 p-1">
+            <div
+              role="listbox"
+              aria-label="Minute"
+              tabIndex={0}
+              onWheel={(event) => event.stopPropagation()}
+              onKeyDown={(event) => {
+                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                  event.preventDefault()
+                  setMinute((current) => (current + (event.key === 'ArrowDown' ? 1 : 59)) % 60)
+                }
+              }}
+              className="h-48 touch-pan-y select-none overflow-y-scroll overscroll-y-contain rounded-lg border border-border/70 bg-background/40 p-1"
+            >
               {Array.from({ length: 60 }, (_, item) => item).map((item) => (
                 <button
                   type="button"
