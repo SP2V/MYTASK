@@ -82,6 +82,7 @@ async function getValidAccessToken(
 }
 
 const RRULE_WEEKDAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA']
+const CALENDAR_TIME_ZONE = 'Asia/Bangkok'
 
 // Google's recurrence array takes RFC 5545 RRULE strings. The app's own
 // `computeNextOccurrence` (recurrence-engine.ts) only ever advances one step
@@ -107,10 +108,12 @@ function buildRecurrenceRule(recurrence: RecurrenceRow, isAllDay: boolean): stri
 
 function toEventBody(task: TaskRow) {
   const isAllDay = !task.due_time
-  const start = isAllDay ? { date: task.due_date } : { dateTime: `${task.due_date}T${task.due_time}:00` }
+  const start = isAllDay
+    ? { date: task.due_date }
+    : { dateTime: `${task.due_date}T${task.due_time}:00+07:00`, timeZone: CALENDAR_TIME_ZONE }
   const end = isAllDay
     ? { date: task.due_date }
-    : { dateTime: `${task.due_date}T${task.due_time}:00` }
+    : { dateTime: `${task.due_date}T${task.due_time}:00+07:00`, timeZone: CALENDAR_TIME_ZONE }
   const recurrence = task.recurrence?.enabled ? buildRecurrenceRule(task.recurrence, isAllDay) : []
   return { summary: task.title, start, end, recurrence, colorId: task.calendar_color_id }
 }
