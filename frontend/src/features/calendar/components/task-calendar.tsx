@@ -21,6 +21,20 @@ const PRIORITY_COLORS: Record<Task['priority'], string> = {
   LOW: '#94a3b8',
 }
 
+const GOOGLE_CALENDAR_COLORS: Record<string, string> = {
+  '1': '#7986cb',
+  '2': '#33b679',
+  '3': '#8e24aa',
+  '4': '#e67c73',
+  '5': '#f6c026',
+  '6': '#f5511d',
+  '7': '#039be5',
+  '8': '#616161',
+  '9': '#3f51b5',
+  '10': '#0b8043',
+  '11': '#d50000',
+}
+
 const VIRTUAL_OCCURRENCE_ID_SEPARATOR = '::occurrence::'
 // Only the task's own dueDate is a real row; recurrence just describes how the
 // next one gets created on completion. Project future dates here so the
@@ -55,13 +69,16 @@ export function TaskCalendar() {
   const events = useMemo(() => {
     return withDueDate.flatMap((task) => {
       const category = categories?.find((c) => c.id === task.categoryId)
+      const eventColor = task.calendarColorId
+        ? GOOGLE_CALENDAR_COLORS[task.calendarColorId] ?? PRIORITY_COLORS[task.priority]
+        : PRIORITY_COLORS[task.priority]
       const baseEvent = {
         id: task.id,
         title: task.title,
         start: task.dueTime ? `${task.dueDate}T${task.dueTime}` : task.dueDate!,
         allDay: !task.dueTime,
-        backgroundColor: PRIORITY_COLORS[task.priority],
-        borderColor: PRIORITY_COLORS[task.priority],
+        backgroundColor: eventColor,
+        borderColor: eventColor,
         classNames: task.status === 'COMPLETED' ? ['opacity-50', 'line-through'] : [],
         extendedProps: { categoryName: category?.name },
       }

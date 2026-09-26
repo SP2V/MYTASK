@@ -299,7 +299,7 @@ export function TaskForm({
                 </div>
               )}
             />
-            <p className="text-[11px] text-muted-foreground">Choose how this task appears on Google Calendar.</p>
+            <p className="text-[11px] text-muted-foreground">Choose how this task appears on the app and Google calendars.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3.5">
