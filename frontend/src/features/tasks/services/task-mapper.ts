@@ -7,6 +7,7 @@ export interface TaskRow {
   description: string | null
   status: Task['status']
   priority: Task['priority']
+  calendar_color_id: Task['calendarColorId'] | null
   category_id: string | null
   due_date: string | null
   due_time: string | null
@@ -30,6 +31,7 @@ export function rowToTask(row: TaskRow): Task {
     description: row.description,
     status: row.status,
     priority: row.priority,
+    calendarColorId: row.calendar_color_id,
     categoryId: row.category_id,
     dueDate: row.due_date,
     dueTime: normalizeTime(row.due_time),
@@ -49,6 +51,7 @@ export function taskToRow(task: Task): TaskRow {
     description: task.description,
     status: task.status,
     priority: task.priority,
+    calendar_color_id: task.calendarColorId ?? null,
     category_id: task.categoryId,
     due_date: task.dueDate,
     due_time: task.dueTime,

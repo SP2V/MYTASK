@@ -38,6 +38,7 @@ interface TaskRow {
   status: string
   due_date: string | null
   due_time: string | null
+  calendar_color_id: string | null
   google_event_id: string | null
   recurrence: RecurrenceRow | null
   series_id: string | null
@@ -111,7 +112,7 @@ function toEventBody(task: TaskRow) {
     ? { date: task.due_date }
     : { dateTime: `${task.due_date}T${task.due_time}:00` }
   const recurrence = task.recurrence?.enabled ? buildRecurrenceRule(task.recurrence, isAllDay) : []
-  return { summary: task.title, start, end, recurrence }
+  return { summary: task.title, start, end, recurrence, colorId: task.calendar_color_id }
 }
 
 async function deleteEvent(accessToken: string, calendarId: string, eventId: string): Promise<void> {
@@ -184,7 +185,7 @@ Deno.serve(async (req) => {
 
     const { data: task } = await admin
       .from('tasks')
-      .select('id, user_id, title, status, due_date, due_time, google_event_id, recurrence, series_id')
+      .select('id, user_id, title, status, due_date, due_time, calendar_color_id, google_event_id, recurrence, series_id')
       .eq('id', body.taskId)
       .maybeSingle()
 

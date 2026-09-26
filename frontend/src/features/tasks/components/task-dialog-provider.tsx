@@ -105,6 +105,7 @@ export function TaskDialogProvider({ children }: { children: ReactNode }) {
                 title: state.task.title,
                 description: state.task.description,
                 priority: state.task.priority,
+                calendarColorId: state.task.calendarColorId ?? null,
                 categoryId: state.task.categoryId,
                 dueDate: state.task.dueDate,
                 dueTime: state.task.dueTime,

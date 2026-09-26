@@ -19,6 +19,20 @@ import { cn } from '@/lib/utils'
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 const MAX_SCREENSHOT_BYTES = 2 * 1024 * 1024
 
+const CALENDAR_COLORS = [
+  { id: '1', name: 'Lavender', hex: '#7986cb' },
+  { id: '2', name: 'Sage', hex: '#33b679' },
+  { id: '3', name: 'Grape', hex: '#8e24aa' },
+  { id: '4', name: 'Flamingo', hex: '#e67c73' },
+  { id: '5', name: 'Banana', hex: '#f6c026' },
+  { id: '6', name: 'Tangerine', hex: '#f5511d' },
+  { id: '7', name: 'Peacock', hex: '#039be5' },
+  { id: '8', name: 'Graphite', hex: '#616161' },
+  { id: '9', name: 'Blueberry', hex: '#3f51b5' },
+  { id: '10', name: 'Basil', hex: '#0b8043' },
+  { id: '11', name: 'Tomato', hex: '#d50000' },
+] as const
+
 function compressScreenshot(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const sourceUrl = URL.createObjectURL(file)
@@ -120,6 +134,7 @@ export function TaskForm({
       title: '',
       description: null,
       priority: defaultPriority,
+      calendarColorId: null,
       categoryId: defaultCategoryId,
       dueDate: null,
       dueTime: null,
@@ -246,6 +261,45 @@ export function TaskForm({
                 </p>
               )}
             </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label className="text-xs font-medium text-muted-foreground">Calendar event color</Label>
+            <Controller
+              control={control}
+              name="calendarColorId"
+              render={({ field }) => (
+                <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Calendar event color">
+                  <button
+                    type="button"
+                    aria-label="Default calendar color"
+                    aria-pressed={!field.value}
+                    onClick={() => field.onChange(null)}
+                    className={cn(
+                      'flex size-7 items-center justify-center rounded-full border text-[10px] font-semibold text-muted-foreground transition-all',
+                      !field.value ? 'border-foreground ring-2 ring-ring ring-offset-2 ring-offset-background' : 'border-border hover:border-foreground/50',
+                    )}
+                  >
+                    A
+                  </button>
+                  {CALENDAR_COLORS.map((color) => (
+                    <button
+                      key={color.id}
+                      type="button"
+                      aria-label={`${color.name} calendar color`}
+                      aria-pressed={field.value === color.id}
+                      onClick={() => field.onChange(color.id)}
+                      className={cn(
+                        'size-7 rounded-full border border-black/10 transition-all',
+                        field.value === color.id && 'ring-2 ring-foreground ring-offset-2 ring-offset-background',
+                      )}
+                      style={{ backgroundColor: color.hex }}
+                    />
+                  ))}
+                </div>
+              )}
+            />
+            <p className="text-[11px] text-muted-foreground">Choose how this task appears on Google Calendar.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3.5">
