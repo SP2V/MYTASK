@@ -39,16 +39,23 @@ export function TaskDialogProvider({ children }: { children: ReactNode }) {
   const ctx = useMemo<TaskDialogContextValue>(
     () => ({
       openCreate: (options) => setState({ mode: 'create', defaults: options ?? {} }),
-      openEdit: (task) => setState({ mode: 'edit', task }),
+      openEdit: async (task) => {
+        try {
+          const fullTask = await taskRepository.getTaskById(task.id)
+          setState({ mode: 'edit', task: fullTask ?? task })
+        } catch {
+          toast.error('Unable to open task. Please try again.')
+        }
+      },
     }),
     [],
   )
 
   const close = () => setState({ mode: 'closed' })
 
-  const handleCreate = async (values: TaskFormValues) => {
+  const handleCreate = async (values: TaskFormValues, descriptionImage: string | null) => {
     try {
-      await taskRepository.createTask(values)
+      await taskRepository.createTask(values, descriptionImage)
       await queryClient.invalidateQueries({ queryKey: tasksQueryKey })
       toast.success('Task created')
       close()
@@ -57,9 +64,9 @@ export function TaskDialogProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const handleUpdate = async (id: string, values: TaskFormValues) => {
+  const handleUpdate = async (id: string, values: TaskFormValues, descriptionImage: string | null) => {
     try {
-      await taskRepository.updateTask(id, values)
+      await taskRepository.updateTask(id, values, descriptionImage)
       await queryClient.invalidateQueries({ queryKey: tasksQueryKey })
       toast.success('Task updated')
       close()
@@ -93,7 +100,6 @@ export function TaskDialogProvider({ children }: { children: ReactNode }) {
               key={state.task.id}
               submitLabel="Save Changes"
               onCancel={close}
-              onSubmit={(values) => handleUpdate(state.task.id, values)}
               defaultAdvancedOpen
               defaultValues={{
                 title: state.task.title,
@@ -105,6 +111,8 @@ export function TaskDialogProvider({ children }: { children: ReactNode }) {
                 recurrence: state.task.recurrence,
                 notes: state.task.notes,
               }}
+              defaultDescriptionImage={state.task.descriptionImage}
+              onSubmit={(values, descriptionImage) => handleUpdate(state.task.id, values, descriptionImage)}
             />
           )}
         </DialogContent>

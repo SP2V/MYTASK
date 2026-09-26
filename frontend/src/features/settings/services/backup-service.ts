@@ -13,7 +13,7 @@ import {
 
 export async function buildExportData(): Promise<ExportData> {
   const [tasks, categories, settings] = await Promise.all([
-    taskRepository.getTasks(),
+    taskRepository.getTasks(true),
     categoryRepository.getCategories(),
     settingsRepository.getSettings(),
   ])

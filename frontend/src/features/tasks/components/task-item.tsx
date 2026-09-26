@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { MoreHorizontal, Repeat, Clock, Pencil, Copy, Archive, Trash2, RotateCcw } from 'lucide-react'
+import { MoreHorizontal, Repeat, Clock, Pencil, Copy, Archive, Trash2, RotateCcw, Image } from 'lucide-react'
 import type { Task, TaskPriority } from '@/features/tasks/schemas/task.schema'
 import { taskRepository } from '@/features/tasks/services/task-repository'
 import { tasksQueryKey } from '@/features/tasks/hooks/use-tasks'
@@ -173,6 +173,11 @@ export function TaskItem({ task }: TaskItemProps) {
 
         {task.description && (
           <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{task.description}</p>
+        )}
+        {task.hasDescriptionImage && (
+          <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+            <Image className="size-3.5" /> Screenshot attached
+          </span>
         )}
 
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">

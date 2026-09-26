@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, type ClipboardEvent } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ChevronDown, ChevronUp, SlidersHorizontal } from 'lucide-react'
+import { ChevronDown, ChevronUp, ImagePlus, SlidersHorizontal, X } from 'lucide-react'
+import { toast } from 'sonner'
 import {
   taskFormSchema,
   type TaskFormValues,
@@ -16,6 +17,62 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils'
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+const MAX_SCREENSHOT_BYTES = 2 * 1024 * 1024
+
+function compressScreenshot(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const sourceUrl = URL.createObjectURL(file)
+    const image = new Image()
+
+    image.onload = () => {
+      URL.revokeObjectURL(sourceUrl)
+      const maxDimension = 1800
+      const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale))
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale))
+      const context = canvas.getContext('2d')
+      if (!context) {
+        reject(new Error('Unable to prepare screenshot'))
+        return
+      }
+      context.drawImage(image, 0, 0, canvas.width, canvas.height)
+
+      const encode = (quality: number) =>
+        new Promise<Blob>((blobResolve, blobReject) => {
+          canvas.toBlob(
+            (blob) => (blob ? blobResolve(blob) : blobReject(new Error('Unable to encode screenshot'))),
+            'image/webp',
+            quality,
+          )
+        })
+
+      void (async () => {
+        try {
+          let blob = await encode(0.88)
+          if (blob.size > MAX_SCREENSHOT_BYTES) blob = await encode(0.72)
+          if (blob.size > MAX_SCREENSHOT_BYTES) {
+            reject(new Error('Screenshot exceeds the 2 MB limit after compression'))
+            return
+          }
+          const reader = new FileReader()
+          reader.onload = () => resolve(String(reader.result))
+          reader.onerror = () => reject(new Error('Unable to read screenshot'))
+          reader.readAsDataURL(blob)
+        } catch (error) {
+          reject(error)
+        }
+      })()
+    }
+
+    image.onerror = () => {
+      URL.revokeObjectURL(sourceUrl)
+      reject(new Error('Unsupported screenshot image'))
+    }
+    image.src = sourceUrl
+  })
+}
+
 const RECURRENCE_OPTIONS: { value: 'NONE' | RecurrenceFrequency; label: string }[] = [
   { value: 'NONE', label: 'Does not repeat' },
   { value: 'DAILY', label: 'Daily' },
@@ -27,7 +84,8 @@ const RECURRENCE_OPTIONS: { value: 'NONE' | RecurrenceFrequency; label: string }
 
 interface TaskFormProps {
   defaultValues?: Partial<TaskFormValues>
-  onSubmit: (values: TaskFormValues) => Promise<void> | void
+  defaultDescriptionImage?: string | null
+  onSubmit: (values: TaskFormValues, descriptionImage: string | null) => Promise<void> | void
   onCancel: () => void
   submitLabel?: string
   defaultAdvancedOpen?: boolean
@@ -37,6 +95,7 @@ interface TaskFormProps {
 
 export function TaskForm({
   defaultValues,
+  defaultDescriptionImage = null,
   onSubmit,
   onCancel,
   submitLabel = 'Save Task',
@@ -47,6 +106,7 @@ export function TaskForm({
   const categories = useCategories()
   const [advancedOpen, setAdvancedOpen] = useState(defaultAdvancedOpen)
   const [submitting, setSubmitting] = useState(false)
+  const [descriptionImage, setDescriptionImage] = useState<string | null>(defaultDescriptionImage)
 
   const {
     register,
@@ -72,10 +132,21 @@ export function TaskForm({
   const dueDate = watch('dueDate')
   const recurrence = watch('recurrence')
 
+  const handleDescriptionPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    const imageItem = Array.from(event.clipboardData.items).find((item) => item.type.startsWith('image/'))
+    const file = imageItem?.getAsFile()
+    if (!file) return
+
+    event.preventDefault()
+    void compressScreenshot(file)
+      .then(setDescriptionImage)
+      .catch(() => toast.error('Unable to paste screenshot. Use an image under 2 MB.'))
+  }
+
   const submit = handleSubmit(async (values) => {
     setSubmitting(true)
     try {
-      await onSubmit(values)
+      await onSubmit(values, descriptionImage)
     } finally {
       setSubmitting(false)
     }
@@ -122,10 +193,32 @@ export function TaskForm({
             </Label>
             <Textarea
               id="task-description"
-              placeholder="Add more detail (optional)"
+              placeholder="Add more detail, then paste a screenshot with Ctrl+V (optional)"
               className="min-h-20 rounded-lg border-border/70 text-xs"
+              onPaste={handleDescriptionPaste}
               {...register('description')}
             />
+            {descriptionImage ? (
+              <div className="relative mt-2 inline-flex max-w-full rounded-lg border border-border/70 bg-background/70 p-2">
+                <img
+                  src={descriptionImage}
+                  alt="Pasted task screenshot"
+                  className="max-h-56 max-w-full rounded-md object-contain"
+                />
+                <button
+                  type="button"
+                  onClick={() => setDescriptionImage(null)}
+                  aria-label="Remove screenshot"
+                  className="absolute -right-2 -top-2 flex size-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm hover:text-destructive"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+            ) : (
+              <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <ImagePlus className="size-3.5" /> Paste a screenshot directly into this field.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3.5">

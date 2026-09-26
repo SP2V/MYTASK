@@ -17,6 +17,12 @@ import {
 } from '@/features/settings/services/google-calendar-sync'
 
 const TABLE = 'tasks'
+const DESCRIPTION_IMAGES_TABLE = 'task_description_images'
+
+interface TaskDescriptionImageRow {
+  task_id: string
+  image_data?: string
+}
 
 function assertNoError<T>(data: T | null, error: { message: string } | null, notFoundMsg?: string): T {
   if (error) throw new Error(error.message)
@@ -25,19 +31,38 @@ function assertNoError<T>(data: T | null, error: { message: string } | null, not
 }
 
 export class TaskRepository {
-  async getTasks(): Promise<Task[]> {
+  async getTasks(includeDescriptionImages = false): Promise<Task[]> {
     const { data, error } = await supabase.from(TABLE).select('*').order('created_at')
     if (error) throw new Error(error.message)
-    return (data as TaskRow[]).map(rowToTask).map((t) => taskSchema.parse(t))
+    const { data: images, error: imageError } = await supabase
+      .from(DESCRIPTION_IMAGES_TABLE)
+      .select(includeDescriptionImages ? 'task_id,image_data' : 'task_id')
+    if (imageError) throw new Error(imageError.message)
+    const imagesByTaskId = new Map(
+      (images as unknown as TaskDescriptionImageRow[]).map((image) => [image.task_id, image.image_data]),
+    )
+    return (data as TaskRow[]).map((row) =>
+      taskSchema.parse({
+        ...rowToTask(row),
+        hasDescriptionImage: imagesByTaskId.has(row.id),
+        ...(includeDescriptionImages ? { descriptionImage: imagesByTaskId.get(row.id) ?? null } : {}),
+      }),
+    )
   }
 
   async getTaskById(id: string): Promise<Task | undefined> {
     const { data, error } = await supabase.from(TABLE).select('*').eq('id', id).maybeSingle()
     if (error) throw new Error(error.message)
-    return data ? taskSchema.parse(rowToTask(data as TaskRow)) : undefined
+    if (!data) return undefined
+    const descriptionImage = await this.getDescriptionImage(id)
+    return taskSchema.parse({
+      ...rowToTask(data as TaskRow),
+      descriptionImage,
+      hasDescriptionImage: !!descriptionImage,
+    })
   }
 
-  async createTask(input: TaskCreateInput): Promise<Task> {
+  async createTask(input: TaskCreateInput, descriptionImage: string | null = null): Promise<Task> {
     const parsedInput = taskCreateSchema.parse(input)
     const timestamp = nowISO()
     const task = taskSchema.parse({
@@ -51,12 +76,21 @@ export class TaskRepository {
     })
     const { data, error } = await supabase.from(TABLE).insert(taskToRow(task)).select().single()
     const row = assertNoError(data, error)
-    const result = taskSchema.parse(rowToTask(row as TaskRow))
+    const result = taskSchema.parse({
+      ...rowToTask(row as TaskRow),
+      descriptionImage,
+      hasDescriptionImage: !!descriptionImage,
+    })
+    if (descriptionImage) await this.saveDescriptionImage(result.id, descriptionImage)
     syncTaskToGoogleCalendar(result.id)
     return result
   }
 
-  async updateTask(id: string, input: TaskUpdateInput): Promise<Task> {
+  async updateTask(
+    id: string,
+    input: TaskUpdateInput,
+    descriptionImage?: string | null,
+  ): Promise<Task> {
     const existing = await this.getTaskById(id)
     if (!existing) throw new Error('Task not found')
 
@@ -73,7 +107,15 @@ export class TaskRepository {
       .select()
       .single()
     const row = assertNoError(data, error)
-    const result = taskSchema.parse(rowToTask(row as TaskRow))
+    const nextDescriptionImage = descriptionImage === undefined
+      ? existing.descriptionImage ?? null
+      : descriptionImage
+    await this.saveDescriptionImage(id, nextDescriptionImage)
+    const result = taskSchema.parse({
+      ...rowToTask(row as TaskRow),
+      descriptionImage: nextDescriptionImage,
+      hasDescriptionImage: !!nextDescriptionImage,
+    })
     syncTaskToGoogleCalendar(result.id)
     return result
   }
@@ -111,7 +153,13 @@ export class TaskRepository {
       .select()
       .single()
     const row = assertNoError(data, error)
-    const result = taskSchema.parse(rowToTask(row as TaskRow))
+    const descriptionImage = existing.descriptionImage ?? null
+    if (descriptionImage) await this.saveDescriptionImage(duplicate.id, descriptionImage)
+    const result = taskSchema.parse({
+      ...rowToTask(row as TaskRow),
+      descriptionImage,
+      hasDescriptionImage: !!descriptionImage,
+    })
     syncTaskToGoogleCalendar(result.id)
     return result
   }
@@ -137,7 +185,11 @@ export class TaskRepository {
       .select()
       .single()
     const row = assertNoError(data, error)
-    const result = taskSchema.parse(rowToTask(row as TaskRow))
+    const result = taskSchema.parse({
+      ...rowToTask(row as TaskRow),
+      descriptionImage: existing.descriptionImage ?? null,
+      hasDescriptionImage: !!existing.descriptionImage,
+    })
     syncTaskToGoogleCalendar(result.id)
     return result
   }
@@ -165,7 +217,11 @@ export class TaskRepository {
       .select()
       .single()
     const completedResult = taskSchema.parse(
-      rowToTask(assertNoError(completedRow, completeError) as TaskRow),
+      {
+        ...rowToTask(assertNoError(completedRow, completeError) as TaskRow),
+        descriptionImage: existing.descriptionImage ?? null,
+        hasDescriptionImage: !!existing.descriptionImage,
+      },
     )
     syncTaskToGoogleCalendar(completedResult.id)
 
@@ -189,7 +245,13 @@ export class TaskRepository {
           .select()
           .single()
         const row = assertNoError(data, error)
-        nextOccurrence = taskSchema.parse(rowToTask(row as TaskRow))
+        const descriptionImage = existing.descriptionImage ?? null
+        if (descriptionImage) await this.saveDescriptionImage(nextTask.id, descriptionImage)
+        nextOccurrence = taskSchema.parse({
+          ...rowToTask(row as TaskRow),
+          descriptionImage,
+          hasDescriptionImage: !!descriptionImage,
+        })
         syncTaskToGoogleCalendar(nextOccurrence.id)
       }
     }
@@ -209,7 +271,11 @@ export class TaskRepository {
       .select()
       .single()
     const row = assertNoError(data, error)
-    const result = taskSchema.parse(rowToTask(row as TaskRow))
+    const result = taskSchema.parse({
+      ...rowToTask(row as TaskRow),
+      descriptionImage: existing.descriptionImage ?? null,
+      hasDescriptionImage: !!existing.descriptionImage,
+    })
     syncTaskToGoogleCalendar(result.id)
     return result
   }
@@ -226,6 +292,38 @@ export class TaskRepository {
     await this.clear()
     if (tasks.length === 0) return
     const { error } = await supabase.from(TABLE).insert(tasks.map(taskToRow))
+    if (error) throw new Error(error.message)
+    const images = tasks
+      .filter((task) => task.descriptionImage)
+      .map((task) => ({ task_id: task.id, image_data: task.descriptionImage! }))
+    if (images.length) {
+      const { error: imageError } = await supabase
+        .from(DESCRIPTION_IMAGES_TABLE)
+        .upsert(images, { onConflict: 'task_id' })
+      if (imageError) throw new Error(imageError.message)
+    }
+  }
+
+  private async getDescriptionImage(taskId: string): Promise<string | null> {
+    const { data, error } = await supabase
+      .from(DESCRIPTION_IMAGES_TABLE)
+      .select('image_data')
+      .eq('task_id', taskId)
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    return (data as { image_data: string } | null)?.image_data ?? null
+  }
+
+  private async saveDescriptionImage(taskId: string, imageData: string | null): Promise<void> {
+    if (imageData) {
+      const { error } = await supabase
+        .from(DESCRIPTION_IMAGES_TABLE)
+        .upsert({ task_id: taskId, image_data: imageData }, { onConflict: 'task_id' })
+      if (error) throw new Error(error.message)
+      return
+    }
+
+    const { error } = await supabase.from(DESCRIPTION_IMAGES_TABLE).delete().eq('task_id', taskId)
     if (error) throw new Error(error.message)
   }
 

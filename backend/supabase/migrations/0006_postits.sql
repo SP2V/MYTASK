@@ -15,5 +15,17 @@ create index if not exists postits_user_id_idx on postits (user_id);
 
 alter table postits enable row level security;
 
-create policy "owner full access" on postits
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'postits'
+      and policyname = 'owner full access'
+  ) then
+    create policy "owner full access" on postits
+      for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  end if;
+end;
+$$;

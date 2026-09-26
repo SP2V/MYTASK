@@ -35,6 +35,11 @@ user's data, and the anon key alone grants no access to any table.
      Post-it board (kept separate from `tasks`)
    - `supabase/migrations/0007_projects.sql` — creates `projects` and
      `project_steps` for multi-step checklist items
+   - `supabase/migrations/0008_delete_old_completed_tasks.sql` — schedules a
+     daily database job that permanently deletes tasks completed more than 30
+     days ago
+   - `supabase/migrations/0009_task_description_images.sql` — adds a private,
+     per-user table for one compressed screenshot per task
    (Or, with the Supabase CLI: `supabase db push`.)
 3. **Enable the Google provider:**
    - In [Google Cloud Console](https://console.cloud.google.com/apis/credentials),
@@ -84,12 +89,23 @@ The stored refresh token grants Calendar access to whichever Google account
 connected — treat the `google_calendar_tokens` table as sensitive. Only the Edge
 Function (via the service role key) and the owning user (via RLS) can read it.
 
+## Completed task cleanup
+
+Migration `0008_delete_old_completed_tasks.sql` schedules a daily Supabase
+database job at 03:00 UTC. It permanently deletes rows from `tasks` only when
+`status` is `COMPLETED` and `completed_at` is more than 30 days old. Tasks with
+other statuses, or completed tasks without a completion timestamp, are kept.
+Apply the migration with `supabase db push` (or run the SQL in the Supabase SQL
+Editor) to enable the automatic cleanup.
+
 ## Schema
 
 - `categories` — id, user_id, name, icon, color, created_at, updated_at
 - `tasks` — id, user_id, title, description, status, priority, category_id (FK →
   categories, `on delete set null`), due_date, due_time, completed_at, recurrence
   (jsonb), google_event_id, notes, series_id, created_at, updated_at
+- `task_description_images` — one compressed screenshot per task, scoped to the
+  same user and cascaded away when the task is deleted
 - `settings` — one row per user, `id` = the user's `auth.users.id`: theme,
   default_priority, default_category_id, week_starts_on, date_format, time_format
 - `google_calendar_tokens` — one row per user who connected Calendar sync:

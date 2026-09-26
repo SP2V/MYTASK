@@ -45,6 +45,8 @@ export const taskSchema = z
     id: z.string().min(1),
     title: z.string().trim().min(1, 'Title is required').max(200),
     description: z.string().max(5000).nullable(),
+    descriptionImage: z.string().max(3_000_000).nullable().optional(),
+    hasDescriptionImage: z.boolean().optional(),
     status: taskStatusSchema,
     priority: taskPrioritySchema,
     categoryId: z.string().nullable(),
