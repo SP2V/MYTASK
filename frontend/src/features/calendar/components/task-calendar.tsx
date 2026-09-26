@@ -66,6 +66,19 @@ export function TaskCalendar() {
   )
   const taskMap = useMemo(() => new Map(withDueDate.map((t) => [t.id, t])), [withDueDate])
 
+  const latestOccurrenceBySeries = useMemo(() => {
+    const latest = new Map<string, Task>()
+    for (const task of withDueDate) {
+      if (!task.recurrence?.enabled || !task.dueDate) continue
+      const seriesKey = task.seriesId ?? task.id
+      const currentLatest = latest.get(seriesKey)
+      if (!currentLatest || task.dueDate > (currentLatest.dueDate ?? '')) {
+        latest.set(seriesKey, task)
+      }
+    }
+    return latest
+  }, [withDueDate])
+
   const events = useMemo(() => {
     return withDueDate.flatMap((task) => {
       const category = categories?.find((c) => c.id === task.categoryId)
@@ -82,7 +95,9 @@ export function TaskCalendar() {
         classNames: task.status === 'COMPLETED' ? ['opacity-50', 'line-through'] : [],
         extendedProps: { categoryName: category?.name },
       }
-      const projectedEvents = projectFutureOccurrences(task).map((date) => ({
+      const seriesKey = task.seriesId ?? task.id
+      const isLatestOccurrence = latestOccurrenceBySeries.get(seriesKey)?.id === task.id
+      const projectedEvents = (isLatestOccurrence ? projectFutureOccurrences(task) : []).map((date) => ({
         ...baseEvent,
         id: `${task.id}${VIRTUAL_OCCURRENCE_ID_SEPARATOR}${date}`,
         start: task.dueTime ? `${date}T${task.dueTime}` : date,
@@ -92,7 +107,7 @@ export function TaskCalendar() {
       }))
       return [baseEvent, ...projectedEvents]
     })
-  }, [withDueDate, categories])
+  }, [withDueDate, categories, latestOccurrenceBySeries])
 
   const handleDateClick = (arg: DateClickArg) => {
     openCreate({ dueDate: arg.dateStr.slice(0, 10) })
