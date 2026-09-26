@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { Task, TaskPriority } from '@/features/tasks/schemas/task.schema'
+import type { Task } from '@/features/tasks/schemas/task.schema'
 import { queryTasks, type TaskView } from '@/features/tasks/lib/task-query'
 import { useTasks } from '@/features/tasks/hooks/use-tasks'
 import { useSearch } from '@/features/tasks/hooks/search-context'
@@ -16,12 +16,6 @@ interface TaskViewSectionProps {
   priorityTieBreakNewestFirst?: boolean
   showFilterBar?: boolean
   heading?: string
-  sharedFilters?: {
-    priorities: TaskPriority[]
-    setPriorities: (priorities: TaskPriority[]) => void
-    categoryIds: string[]
-    setCategoryIds: (categoryIds: string[]) => void
-  }
 }
 
 export function TaskViewSection({
@@ -32,18 +26,16 @@ export function TaskViewSection({
   priorityTieBreakNewestFirst = false,
   showFilterBar = true,
   heading,
-  sharedFilters,
 }: TaskViewSectionProps) {
   const allTasks = useTasks()
   const { debouncedQuery } = useSearch()
   const state = useTaskViewState(defaultSortField, defaultSortDirection)
-  const filters = sharedFilters ?? state
 
   const tasks: Task[] | undefined = allTasks
     ? queryTasks(allTasks, {
         view,
         search: debouncedQuery,
-        filters: { priorities: filters.priorities, categoryIds: filters.categoryIds },
+        filters: { priorities: state.priorities, categoryIds: state.categoryIds },
         sortField: state.sortField,
         sortDirection: state.sortDirection,
         priorityTieBreakNewestFirst,
@@ -57,10 +49,10 @@ export function TaskViewSection({
         {showFilterBar && (
           <div className="ml-auto">
             <FilterBar
-              priorities={filters.priorities}
-              onPrioritiesChange={filters.setPriorities}
-              categoryIds={filters.categoryIds}
-              onCategoryIdsChange={filters.setCategoryIds}
+              priorities={state.priorities}
+              onPrioritiesChange={state.setPriorities}
+              categoryIds={state.categoryIds}
+              onCategoryIdsChange={state.setCategoryIds}
               sortField={state.sortField}
               onSortFieldChange={state.setSortField}
               sortDirection={state.sortDirection}
