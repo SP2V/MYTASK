@@ -14,6 +14,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { DatePickerPopover } from '@/components/ui/date-picker-popover'
+import { TimePickerPopover } from '@/components/ui/time-picker-popover'
 import { cn } from '@/lib/utils'
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
@@ -127,6 +129,7 @@ export function TaskForm({
     handleSubmit,
     control,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
@@ -241,19 +244,38 @@ export function TaskForm({
               <Label htmlFor="task-due-date" className="text-xs font-medium text-muted-foreground">
                 Due date
               </Label>
-              <Input id="task-due-date" type="date" className="rounded-lg border-border/70 text-xs" {...register('dueDate')} />
+              <Controller
+                control={control}
+                name="dueDate"
+                render={({ field }) => (
+                  <DatePickerPopover
+                    id="task-due-date"
+                    value={field.value}
+                    onChange={(nextDate) => {
+                      field.onChange(nextDate)
+                      if (!nextDate) setValue('dueTime', null, { shouldValidate: true })
+                    }}
+                    placeholder="Choose a date"
+                  />
+                )}
+              />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="task-due-time" className="text-xs font-medium text-muted-foreground">
                 Due time
               </Label>
-              <Input
-                id="task-due-time"
-                type="time"
-                disabled={!dueDate}
-                aria-invalid={!!errors.dueTime}
-                className="rounded-lg border-border/70 text-xs disabled:opacity-50"
-                {...register('dueTime')}
+              <Controller
+                control={control}
+                name="dueTime"
+                render={({ field }) => (
+                  <TimePickerPopover
+                    id="task-due-time"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="Choose a time"
+                    disabled={!dueDate}
+                  />
+                )}
               />
               {errors.dueTime && (
                 <p role="alert" className="text-xs text-destructive">
@@ -460,14 +482,11 @@ export function TaskForm({
                           <Label htmlFor="recurrence-end-date" className="text-xs text-muted-foreground">
                             Ends on (optional)
                           </Label>
-                          <Input
+                          <DatePickerPopover
                             id="recurrence-end-date"
-                            type="date"
-                            className="rounded-lg border-border/70 text-xs"
-                            value={field.value.endDate ?? ''}
-                            onChange={(e) =>
-                              field.onChange({ ...field.value!, endDate: e.target.value || null })
-                            }
+                            value={field.value.endDate}
+                            onChange={(endDate) => field.onChange({ ...field.value!, endDate })}
+                            placeholder="No end date"
                           />
                         </div>
                       </div>
