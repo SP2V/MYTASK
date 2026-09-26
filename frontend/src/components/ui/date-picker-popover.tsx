@@ -17,7 +17,7 @@ interface DatePickerPopoverProps {
 
 function dateFromValue(value: string | null): Date | null {
   if (!value) return null
-  const [year, month, day] = value.split('-').map(Number)
+  const [year = 1970, month = 1, day = 1] = value.split('-').map(Number)
   return new Date(year, month - 1, day)
 }
 
