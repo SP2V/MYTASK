@@ -84,6 +84,32 @@ async function getValidAccessToken(
 const RRULE_WEEKDAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA']
 const CALENDAR_TIME_ZONE = 'Asia/Bangkok'
 
+function addDays(date: string, days: number): string {
+  const value = new Date(`${date}T00:00:00.000Z`)
+  value.setUTCDate(value.getUTCDate() + days)
+  return value.toISOString().slice(0, 10)
+}
+
+function timedRange(date: string, rawTime: string): { start: string; end: string } {
+  // Postgres `time` values are returned as HH:MM:SS, while the web app uses
+  // HH:MM. Do not append seconds blindly: that produced invalid RFC3339 such
+  // as `2026-09-30T13:00:00:00+07:00` for every timed task.
+  const match = /^(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?$/.exec(rawTime)
+  if (!match) throw new Error(`Invalid task due_time: ${rawTime}`)
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  const seconds = Number(match[3] ?? '0')
+  if (hours > 23 || minutes > 59 || seconds > 59) throw new Error(`Invalid task due_time: ${rawTime}`)
+
+  const start = `${date}T${match[1]}:${match[2]}:${String(seconds).padStart(2, '0')}+07:00`
+  const endMinutesOfDay = hours * 60 + minutes + 60
+  const endDate = addDays(date, Math.floor(endMinutesOfDay / (24 * 60)))
+  const endHour = Math.floor((endMinutesOfDay % (24 * 60)) / 60)
+  const endMinute = endMinutesOfDay % 60
+  const end = `${endDate}T${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}:${String(seconds).padStart(2, '0')}+07:00`
+  return { start, end }
+}
+
 // Google's recurrence array takes RFC 5545 RRULE strings. The app's own
 // `computeNextOccurrence` (recurrence-engine.ts) only ever advances one step
 // at a time, so this mirrors that model as closely as RRULE allows: CUSTOM
@@ -108,12 +134,15 @@ function buildRecurrenceRule(recurrence: RecurrenceRow, isAllDay: boolean): stri
 
 function toEventBody(task: TaskRow) {
   const isAllDay = !task.due_time
+  const range = !isAllDay && task.due_date && task.due_time
+    ? timedRange(task.due_date, task.due_time)
+    : null
   const start = isAllDay
     ? { date: task.due_date }
-    : { dateTime: `${task.due_date}T${task.due_time}:00+07:00`, timeZone: CALENDAR_TIME_ZONE }
+    : { dateTime: range!.start, timeZone: CALENDAR_TIME_ZONE }
   const end = isAllDay
-    ? { date: task.due_date }
-    : { dateTime: `${task.due_date}T${task.due_time}:00+07:00`, timeZone: CALENDAR_TIME_ZONE }
+    ? { date: addDays(task.due_date!, 1) }
+    : { dateTime: range!.end, timeZone: CALENDAR_TIME_ZONE }
   const recurrence = task.recurrence?.enabled ? buildRecurrenceRule(task.recurrence, isAllDay) : []
   return { summary: task.title, start, end, recurrence, colorId: task.calendar_color_id }
 }
