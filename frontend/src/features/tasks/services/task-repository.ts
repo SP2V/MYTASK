@@ -168,6 +168,10 @@ export class TaskRepository {
     return this.setStatus(id, 'ARCHIVED')
   }
 
+  async restoreTask(id: string): Promise<Task> {
+    return this.reopenTask(id)
+  }
+
   async reopenTask(id: string): Promise<Task> {
     const existing = await this.getTaskById(id)
     if (!existing) throw new Error('Task not found')

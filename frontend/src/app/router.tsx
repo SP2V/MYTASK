@@ -7,6 +7,7 @@ import TodayPage from '@/pages/today'
 import UpcomingPage from '@/pages/upcoming'
 import OverduePage from '@/pages/overdue'
 import CompletedPage from '@/pages/completed'
+import ArchivedPage from '@/pages/archived'
 import CalendarPage from '@/pages/calendar'
 import CategoriesPage from '@/pages/categories'
 import PostitPage from '@/pages/postit'
@@ -25,6 +26,7 @@ export function AppRouter() {
           <Route path="/upcoming" element={<UpcomingPage />} />
           <Route path="/overdue" element={<OverduePage />} />
           <Route path="/completed" element={<CompletedPage />} />
+          <Route path="/archived" element={<ArchivedPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/postit" element={<PostitPage />} />

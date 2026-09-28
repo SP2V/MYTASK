@@ -2,7 +2,7 @@ import type { Task, TaskPriority } from '@/features/tasks/schemas/task.schema'
 import { compareDateOnly, isDueToday, isOverdue, isUpcoming, todayDateString } from '@/lib/date'
 import { PRIORITY_META } from '@/lib/constants'
 
-export type TaskView = 'TODAY' | 'UPCOMING' | 'OVERDUE' | 'COMPLETED' | 'NO_DUE_DATE' | 'ALL'
+export type TaskView = 'TODAY' | 'UPCOMING' | 'OVERDUE' | 'COMPLETED' | 'ARCHIVED' | 'NO_DUE_DATE' | 'ALL'
 
 export function matchesView(
   task: Task,
@@ -19,6 +19,8 @@ export function matchesView(
       return isOverdue(task, now)
     case 'COMPLETED':
       return task.status === 'COMPLETED'
+    case 'ARCHIVED':
+      return task.status === 'ARCHIVED'
     case 'NO_DUE_DATE':
       return task.status !== 'ARCHIVED' && task.status !== 'COMPLETED' && !task.dueDate
     case 'ALL':

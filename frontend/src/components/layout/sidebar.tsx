@@ -7,6 +7,7 @@ import {
   CalendarDays,
   AlertTriangle,
   CheckCircle2,
+  Archive,
   Calendar,
   FolderKanban,
   StickyNote,
@@ -54,6 +55,7 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/categories', label: 'Categories', icon: FolderKanban },
       { to: '/postit', label: 'Post-it Notes', icon: StickyNote },
       { to: '/completed', label: 'Completed', icon: CheckCircle2 },
+      { to: '/archived', label: 'Archived', icon: Archive },
     ],
   },
 ]

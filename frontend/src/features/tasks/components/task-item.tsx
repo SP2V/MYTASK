@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { MoreHorizontal, Repeat, Clock, Pencil, Copy, Archive, Trash2, RotateCcw, Image } from 'lucide-react'
+import { MoreHorizontal, Repeat, Clock, Pencil, Copy, Archive, ArchiveRestore, Trash2, RotateCcw, Image } from 'lucide-react'
 import type { Task, TaskPriority } from '@/features/tasks/schemas/task.schema'
 import { taskRepository } from '@/features/tasks/services/task-repository'
 import { tasksQueryKey } from '@/features/tasks/hooks/use-tasks'
@@ -82,6 +82,16 @@ export function TaskItem({ task }: TaskItemProps) {
     }
   }
 
+  const handleRestore = async () => {
+    try {
+      await taskRepository.restoreTask(task.id)
+      invalidateTasks()
+      toast.success('Task restored')
+    } catch {
+      toast.error('Unable to restore task. Please try again.')
+    }
+  }
+
   const handleDelete = async () => {
     try {
       await taskRepository.deleteTask(task.id)
@@ -157,7 +167,11 @@ export function TaskItem({ task }: TaskItemProps) {
                     <RotateCcw className="size-3.5" /> Reopen
                   </DropdownMenuItem>
                 )}
-                {!isArchived && (
+                {isArchived ? (
+                  <DropdownMenuItem onClick={handleRestore}>
+                    <ArchiveRestore className="size-3.5" /> Restore
+                  </DropdownMenuItem>
+                ) : (
                   <DropdownMenuItem onClick={handleArchive}>
                     <Archive className="size-3.5" /> Archive
                   </DropdownMenuItem>
