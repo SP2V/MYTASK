@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Search, Settings, Sun, Moon, LogOut, CheckSquare2 } from 'lucide-react'
+import { Search, Settings, Sun, Moon, LogOut } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useSearch } from '@/features/tasks/hooks/search-context'
@@ -20,9 +20,11 @@ export function Header() {
     <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border/60 bg-background/70 px-4 backdrop-blur-xl md:px-6">
       {/* Mobile Branding */}
       <div className="flex items-center gap-2.5 md:hidden">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <CheckSquare2 className="size-4.5" aria-hidden="true" />
-        </div>
+        <img
+          src="/Glossy%20Calendar%20Checklist%20Icon.png"
+          alt="Task Manager logo"
+          className="size-8 rounded-lg object-contain"
+        />
         <span className="text-sm font-bold tracking-tight">Task Manager</span>
       </div>
 

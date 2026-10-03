@@ -14,7 +14,6 @@ import {
   ListChecks,
   Settings,
   Sparkles,
-  CheckSquare2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -82,9 +81,11 @@ export function Sidebar() {
       {/* Brand Header */}
       <div className="flex h-16 shrink-0 items-center justify-between border-b border-border/60 px-5">
         <div className="flex items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center rounded-xl bg-gradient-to-tr from-primary via-primary/90 to-primary/70 text-primary-foreground shadow-sm shadow-primary/20">
-            <CheckSquare2 className="size-4.5" aria-hidden="true" />
-          </div>
+          <img
+            src="/Glossy%20Calendar%20Checklist%20Icon.png"
+            alt="Task Manager logo"
+            className="size-8 rounded-xl object-contain"
+          />
           <div className="flex flex-col">
             <span className="text-sm font-semibold tracking-tight text-foreground">Task Manager</span>
             <span className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
