@@ -1,7 +1,7 @@
 import { useState, type ClipboardEvent } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ChevronDown, ChevronUp, ImagePlus, SlidersHorizontal, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Copy, ImagePlus, SlidersHorizontal, X } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   taskFormSchema,
@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DatePickerPopover } from '@/components/ui/date-picker-popover'
 import { TimePickerPopover } from '@/components/ui/time-picker-popover'
 import { cn } from '@/lib/utils'
+import { copyDescription } from '@/features/tasks/lib/copy-description'
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 const MAX_SCREENSHOT_BYTES = 2 * 1024 * 1024
@@ -122,6 +123,7 @@ export function TaskForm({
   const categories = useCategories()
   const [advancedOpen, setAdvancedOpen] = useState(defaultAdvancedOpen)
   const [submitting, setSubmitting] = useState(false)
+  const [copyingDescription, setCopyingDescription] = useState(false)
   const [descriptionImage, setDescriptionImage] = useState<string | null>(defaultDescriptionImage)
 
   const {
@@ -148,7 +150,20 @@ export function TaskForm({
   })
 
   const dueDate = watch('dueDate')
+  const description = watch('description') ?? ''
   const recurrence = watch('recurrence')
+
+  const handleCopyDescription = async () => {
+    setCopyingDescription(true)
+    try {
+      await copyDescription(description, descriptionImage)
+      toast.success(descriptionImage ? 'Description and screenshot copied' : 'Description copied')
+    } catch {
+      toast.error('Unable to copy description. Allow clipboard access and use a browser that supports copying images.')
+    } finally {
+      setCopyingDescription(false)
+    }
+  }
 
   const handleDescriptionPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
     const imageItem = Array.from(event.clipboardData.items).find((item) => item.type.startsWith('image/'))
@@ -156,6 +171,14 @@ export function TaskForm({
     if (!file) return
 
     event.preventDefault()
+    const pastedText = event.clipboardData.getData('text/plain')
+    if (pastedText) {
+      const { value, selectionStart, selectionEnd } = event.currentTarget
+      setValue('description', value.slice(0, selectionStart) + pastedText + value.slice(selectionEnd), {
+        shouldDirty: true,
+        shouldValidate: true,
+      })
+    }
     void compressScreenshot(file)
       .then(setDescriptionImage)
       .catch(() => toast.error('Unable to paste screenshot. Use an image under 2 MB.'))
@@ -206,9 +229,24 @@ export function TaskForm({
       {advancedOpen && (
         <div className="flex flex-col gap-4 rounded-xl border border-border/70 bg-accent/25 p-4 backdrop-blur-xs">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="task-description" className="text-xs font-medium text-muted-foreground">
-              Description
-            </Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="task-description" className="text-xs font-medium text-muted-foreground">
+                Description
+              </Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                aria-label="Copy description and screenshot"
+                title="Copy description text and screenshot"
+                onClick={handleCopyDescription}
+                disabled={copyingDescription || (!description.trim() && !descriptionImage)}
+              >
+                <Copy className="size-3.5" />
+                {copyingDescription ? 'Copying…' : 'Copy'}
+              </Button>
+            </div>
             <Textarea
               id="task-description"
               placeholder="Add more detail, then paste a screenshot with Ctrl+V (optional)"
