@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { MoreHorizontal, Repeat, Clock, Pencil, Copy, Archive, ArchiveRestore, Trash2, RotateCcw, Image } from 'lucide-react'
+import { MoreHorizontal, Repeat, Clock, Pencil, Copy, Archive, ArchiveRestore, Trash2, RotateCcw, Image, ClipboardCopy } from 'lucide-react'
 import type { Task, TaskPriority } from '@/features/tasks/schemas/task.schema'
 import { taskRepository } from '@/features/tasks/services/task-repository'
 import { tasksQueryKey } from '@/features/tasks/hooks/use-tasks'
+import { copyDescription } from '@/features/tasks/lib/copy-description'
 import { useTaskDialog } from '@/features/tasks/components/task-dialog-provider'
 import { useCategories } from '@/features/categories/hooks/use-categories'
 import { useSettings } from '@/features/settings/hooks/use-settings'
@@ -40,6 +41,7 @@ export function TaskItem({ task }: TaskItemProps) {
   const settings = useSettings()
   const queryClient = useQueryClient()
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [copyingDescription, setCopyingDescription] = useState(false)
 
   const category = categories?.find((c) => c.id === task.categoryId)
   const overdue = isOverdue(task)
@@ -59,6 +61,28 @@ export function TaskItem({ task }: TaskItemProps) {
       invalidateTasks()
     } catch {
       toast.error('Unable to update task. Please try again.')
+    }
+  }
+
+  const description = task.description ?? ''
+  const canCopyDescription = !!description.trim() || !!task.hasDescriptionImage
+
+  const handleCopyDescription = async () => {
+    setCopyingDescription(true)
+    try {
+      const screenshot = task.descriptionImage
+        ?? (task.hasDescriptionImage
+          ? taskRepository.getDescriptionImage(task.id).then((image) => {
+            if (!image) throw new Error('Screenshot not found')
+            return image
+          })
+          : null)
+      await copyDescription(description, screenshot)
+      toast.success(task.hasDescriptionImage ? 'Description and screenshot copied' : 'Description copied')
+    } catch {
+      toast.error('Unable to copy description. Allow clipboard access and use a browser that supports copying images.')
+    } finally {
+      setCopyingDescription(false)
     }
   }
 
@@ -143,6 +167,20 @@ export function TaskItem({ task }: TaskItemProps) {
             >
               <Pencil className="size-3.5" />
             </Button>
+
+            {canCopyDescription && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                aria-label={`Copy description of ${task.title}`}
+                title="Copy description text and screenshot"
+                disabled={copyingDescription}
+                onClick={handleCopyDescription}
+              >
+                <ClipboardCopy className="size-3.5" />
+              </Button>
+            )}
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

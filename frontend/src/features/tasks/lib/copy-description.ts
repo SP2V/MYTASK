@@ -22,16 +22,7 @@ function screenshotAsPng(source: string): Promise<Blob> {
   })
 }
 
-export async function copyDescription(text: string, screenshot: string | null): Promise<void> {
-  if (!screenshot) {
-    await navigator.clipboard.writeText(text)
-    return
-  }
-
-  if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
-    throw new Error('This browser does not support copying text and images together.')
-  }
-
+function descriptionHtml(text: string, screenshot: string): Blob {
   const content = document.createElement('div')
   for (const line of text.split(/\r\n|\r|\n/)) {
     if (content.childNodes.length) content.append(document.createElement('br'))
@@ -42,11 +33,28 @@ export async function copyDescription(text: string, screenshot: string | null): 
   image.src = screenshot
   image.alt = 'Task screenshot'
   content.append(image)
+  return new Blob([content.outerHTML], { type: 'text/html' })
+}
 
-  // Start the clipboard write during the click, before image conversion finishes.
+/**
+ * Copies description text and its screenshot. `screenshot` may be a promise so callers can
+ * load the image after the click while the clipboard write still starts within the gesture.
+ */
+export async function copyDescription(text: string, screenshot: string | null | Promise<string>): Promise<void> {
+  if (!screenshot) {
+    await navigator.clipboard.writeText(text)
+    return
+  }
+
+  if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
+    throw new Error('This browser does not support copying text and images together.')
+  }
+
+  const source = Promise.resolve(screenshot)
+  // Start the clipboard write during the click, before image loading and conversion finish.
   await navigator.clipboard.write([new ClipboardItem({
     'text/plain': new Blob([text], { type: 'text/plain' }),
-    'text/html': new Blob([content.outerHTML], { type: 'text/html' }),
-    'image/png': screenshotAsPng(screenshot),
+    'text/html': source.then((image) => descriptionHtml(text, image)),
+    'image/png': source.then(screenshotAsPng),
   })])
 }

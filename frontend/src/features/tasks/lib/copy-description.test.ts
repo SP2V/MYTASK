@@ -58,6 +58,37 @@ describe('copyDescription', () => {
     },
   )
 
+  it('starts the clipboard write before a lazily loaded screenshot resolves', async () => {
+    const png = new Blob(['png-data'], { type: 'image/png' })
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: vi.fn() } as unknown as CanvasRenderingContext2D)
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((callback) => callback(png))
+    vi.stubGlobal('Image', class {
+      naturalWidth = 80
+      naturalHeight = 60
+      onload?: () => void
+      set src(_source: string) { queueMicrotask(() => this.onload?.()) }
+    })
+    let formats: Record<string, Blob | Promise<Blob>> = {}
+    vi.stubGlobal('ClipboardItem', class {
+      constructor(data: typeof formats) { formats = data }
+    })
+    const write = vi.fn().mockImplementation(async () => {
+      await Promise.all(Object.values(formats))
+    })
+    vi.stubGlobal('navigator', { clipboard: { write } })
+    const screenshot = 'data:image/webp;base64,c2NyZWVuc2hvdA=='
+    let resolveScreenshot!: (value: string) => void
+
+    const copying = copyDescription('Lazy', new Promise<string>((resolve) => { resolveScreenshot = resolve }))
+    expect(write).toHaveBeenCalledTimes(1)
+    resolveScreenshot(screenshot)
+    await copying
+    const html = document.createElement('div')
+    html.innerHTML = await readBlob(await formats['text/html']!)
+    expect(html.querySelector('img')?.getAttribute('src')).toBe(screenshot)
+    expect(await formats['image/png']).toBe(png)
+  })
+
   it('rejects unsupported image copying without silently copying only text', async () => {
     const writeText = vi.fn()
     vi.stubGlobal('navigator', { clipboard: { writeText } })

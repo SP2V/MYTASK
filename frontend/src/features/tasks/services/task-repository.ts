@@ -308,7 +308,7 @@ export class TaskRepository {
     }
   }
 
-  private async getDescriptionImage(taskId: string): Promise<string | null> {
+  async getDescriptionImage(taskId: string): Promise<string | null> {
     const { data, error } = await supabase
       .from(DESCRIPTION_IMAGES_TABLE)
       .select('image_data')
