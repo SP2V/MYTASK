@@ -172,6 +172,18 @@ export class TaskRepository {
     return this.reopenTask(id)
   }
 
+  /** Moves tasks into a project, or out of any project when `projectId` is null. */
+  async setTasksProject(taskIds: string[], projectId: string | null): Promise<void> {
+    const updatedAt = nowISO()
+    const results = await Promise.all(
+      taskIds.map((id) =>
+        supabase.from(TABLE).update({ project_id: projectId, updated_at: updatedAt }).eq('id', id),
+      ),
+    )
+    const failed = results.find((result) => result.error)
+    if (failed?.error) throw new Error(failed.error.message)
+  }
+
   async reopenTask(id: string): Promise<Task> {
     const existing = await this.getTaskById(id)
     if (!existing) throw new Error('Task not found')

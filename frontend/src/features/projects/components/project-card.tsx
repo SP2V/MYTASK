@@ -8,11 +8,13 @@ import {
   ChevronDown,
   Clock,
   Copy,
+  Link2,
   ListChecks,
   Pencil,
   Plus,
   SquareCheckBig,
   Trash2,
+  X,
 } from 'lucide-react'
 import { projectRepository } from '@/features/projects/services/project-repository'
 import { projectsQueryKey } from '@/features/projects/hooks/use-projects'
@@ -30,6 +32,7 @@ import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import { ProjectForm } from '@/features/projects/components/project-form'
+import { LinkTasksDialog } from '@/features/projects/components/link-tasks-dialog'
 import { cn } from '@/lib/utils'
 
 interface ProjectCardProps {
@@ -44,14 +47,20 @@ const STATUS_META: Record<ProjectStatus, { label: string; className: string }> =
   COMPLETED: { label: 'Completed', className: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' },
 }
 
-function ProjectTaskRow({ task, onToggle }: { task: Task; onToggle: (task: Task) => void }) {
+interface ProjectTaskRowProps {
+  task: Task
+  onToggle: (task: Task) => void
+  onUnlink: (task: Task) => void
+}
+
+function ProjectTaskRow({ task, onToggle, onUnlink }: ProjectTaskRowProps) {
   const { openEdit } = useTaskDialog()
   const settings = useSettings()
   const isCompleted = task.status === 'COMPLETED'
   const overdue = isOverdue(task)
 
   return (
-    <li className="flex items-center gap-2.5 rounded-lg px-1.5 py-1 transition-colors hover:bg-accent/40">
+    <li className="group flex items-center gap-2.5 rounded-lg px-1.5 py-1 transition-colors hover:bg-accent/40">
       <Checkbox
         checked={isCompleted}
         onCheckedChange={() => onToggle(task)}
@@ -80,6 +89,15 @@ function ProjectTaskRow({ task, onToggle }: { task: Task; onToggle: (task: Task)
           {task.dueTime && ` · ${formatTimeForDisplay(task.dueTime, settings.timeFormat)}`}
         </span>
       )}
+      <button
+        type="button"
+        onClick={() => onUnlink(task)}
+        aria-label={`Remove ${task.title} from project`}
+        title="Remove from project (keeps the task)"
+        className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"
+      >
+        <X className="size-3" />
+      </button>
     </li>
   )
 }
@@ -91,6 +109,7 @@ export function ProjectCard({ project, summary, defaultExpanded = false }: Proje
   const [newStep, setNewStep] = useState('')
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
+  const [linkOpen, setLinkOpen] = useState(false)
   const { percent, status } = summary
   const complete = status === 'COMPLETED'
   const detailsId = `project-details-${project.id}`
@@ -117,6 +136,16 @@ export function ProjectCard({ project, summary, defaultExpanded = false }: Proje
       invalidateTasks()
     } catch {
       toast.error('Unable to update task. Please try again.')
+    }
+  }
+
+  const handleUnlinkTask = async (task: Task) => {
+    try {
+      await taskRepository.setTasksProject([task.id], null)
+      invalidateTasks()
+      toast.success('Task removed from project')
+    } catch {
+      toast.error('Unable to remove task. Please try again.')
     }
   }
 
@@ -366,30 +395,43 @@ export function ProjectCard({ project, summary, defaultExpanded = false }: Proje
           <section className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-2">
               <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tasks</h4>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 gap-1.5 rounded-md px-2 text-xs"
-                onClick={() => openCreate({ projectId: project.id })}
-              >
-                <Plus className="size-3.5" />
-                Add task
-              </Button>
+              <div className="flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1.5 rounded-md px-2 text-xs"
+                  onClick={() => setLinkOpen(true)}
+                >
+                  <Link2 className="size-3.5" />
+                  Add existing
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1.5 rounded-md px-2 text-xs"
+                  onClick={() => openCreate({ projectId: project.id })}
+                >
+                  <Plus className="size-3.5" />
+                  New task
+                </Button>
+              </div>
             </div>
             {summary.tasksTotal === 0 ? (
               <p className="rounded-lg border border-dashed border-border/70 px-3 py-4 text-center text-xs text-muted-foreground">
-                No tasks linked yet. Add one here, or pick this project when editing a task.
+                No tasks linked yet. Add existing tasks or create a new one.
               </p>
             ) : (
               <ul className="flex flex-col gap-1">
                 {[...summary.openTasks, ...summary.completedTasks].map((task) => (
-                  <ProjectTaskRow key={task.id} task={task} onToggle={handleToggleTask} />
+                  <ProjectTaskRow key={task.id} task={task} onToggle={handleToggleTask} onUnlink={handleUnlinkTask} />
                 ))}
               </ul>
             )}
           </section>
         </div>
       )}
+
+      <LinkTasksDialog project={project} open={linkOpen} onOpenChange={setLinkOpen} />
 
       <ConfirmDialog
         open={deleteOpen}

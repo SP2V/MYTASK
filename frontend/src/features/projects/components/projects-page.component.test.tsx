@@ -83,4 +83,33 @@ describe('ProjectsPage', () => {
     expect(screen.getByRole('progressbar', { name: 'Finished progress' })).toBeInTheDocument()
     expect(screen.queryByRole('progressbar', { name: 'Fresh progress' })).not.toBeInTheDocument()
   })
+  it('adds existing tasks to a project and removes them again', async () => {
+    const launch = await projectRepository.createProject({ title: 'Launch', description: null, stepTitles: ['Plan'] })
+    const garden = await projectRepository.createProject({ title: 'Garden', description: null, stepTitles: ['Dig'] })
+    await taskRepository.createTask({ ...baseTask, title: 'Loose task' })
+    await taskRepository.createTask({ ...baseTask, title: 'Garden task', projectId: garden.id })
+    await taskRepository.createTask({ ...baseTask, title: 'Old task' }).then((t) => taskRepository.archiveTask(t.id))
+
+    renderPage()
+
+    await userEvent.click(await screen.findByRole('button', { name: /^launch/i, expanded: false }))
+    await userEvent.click(screen.getByRole('button', { name: /add existing/i }))
+    const dialog = await screen.findByRole('dialog', { name: /add existing tasks/i })
+    expect(within(dialog).queryByText('Old task')).not.toBeInTheDocument()
+    expect(within(dialog).getByText('in Garden')).toBeInTheDocument()
+
+    await userEvent.type(within(dialog).getByRole('textbox', { name: 'Search tasks' }), 'loose')
+    expect(within(dialog).queryByText('Garden task')).not.toBeInTheDocument()
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: 'Select Loose task' }))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Add task' }))
+
+    expect(await screen.findByRole('checkbox', { name: 'Complete Loose task' })).toBeInTheDocument()
+    const linked = (await taskRepository.getTasks()).find((t) => t.title === 'Loose task')
+    expect(linked?.projectId).toBe(launch.id)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Loose task from project' }))
+    expect(await screen.findByText(/No tasks linked yet/)).toBeInTheDocument()
+    const unlinked = (await taskRepository.getTasks()).find((t) => t.title === 'Loose task')
+    expect(unlinked?.projectId).toBeNull()
+  })
 })
