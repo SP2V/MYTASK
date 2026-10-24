@@ -27,6 +27,7 @@ describe('TaskForm', () => {
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Buy milk', priority: 'MEDIUM' }),
+      null,
     )
   })
 
@@ -46,7 +47,8 @@ describe('TaskForm', () => {
 
     expect(screen.getByLabelText(/due time/i)).toBeDisabled()
 
-    await userEvent.type(screen.getByLabelText(/due date/i), '2026-06-15')
+    await userEvent.click(screen.getByLabelText(/due date/i))
+    await userEvent.click(await screen.findByRole('button', { name: 'Today' }))
     expect(screen.getByLabelText(/due time/i)).toBeEnabled()
   })
 
