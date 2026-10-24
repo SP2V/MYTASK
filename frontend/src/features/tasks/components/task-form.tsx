@@ -9,6 +9,7 @@ import {
   type RecurrenceFrequency,
 } from '@/features/tasks/schemas/task.schema'
 import { useCategories } from '@/features/categories/hooks/use-categories'
+import { useProjects } from '@/features/projects/hooks/use-projects'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -107,6 +108,7 @@ interface TaskFormProps {
   submitLabel?: string
   defaultAdvancedOpen?: boolean
   defaultCategoryId?: string | null
+  defaultProjectId?: string | null
   defaultPriority?: TaskFormValues['priority']
 }
 
@@ -118,9 +120,11 @@ export function TaskForm({
   submitLabel = 'Save Task',
   defaultAdvancedOpen = false,
   defaultCategoryId = null,
+  defaultProjectId = null,
   defaultPriority = 'MEDIUM',
 }: TaskFormProps) {
   const categories = useCategories()
+  const projects = useProjects()
   const [advancedOpen, setAdvancedOpen] = useState(defaultAdvancedOpen)
   const [submitting, setSubmitting] = useState(false)
   const [copyingDescription, setCopyingDescription] = useState(false)
@@ -141,6 +145,7 @@ export function TaskForm({
       priority: defaultPriority,
       calendarColorId: null,
       categoryId: defaultCategoryId,
+      projectId: defaultProjectId,
       dueDate: null,
       dueTime: null,
       recurrence: null,
@@ -412,6 +417,34 @@ export function TaskForm({
                 )}
               />
             </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="task-project" className="text-xs font-medium text-muted-foreground">
+              Project
+            </Label>
+            <Controller
+              control={control}
+              name="projectId"
+              render={({ field }) => (
+                <Select
+                  value={field.value ?? 'none'}
+                  onValueChange={(v) => field.onChange(v === 'none' ? null : v)}
+                >
+                  <SelectTrigger id="task-project" className="rounded-lg border-border/70 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="none">No project</SelectItem>
+                    {projects?.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
           </div>
 
           <div className="flex flex-col gap-1.5">

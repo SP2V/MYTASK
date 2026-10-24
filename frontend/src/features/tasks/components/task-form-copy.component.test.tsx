@@ -6,6 +6,7 @@ import { copyDescription } from '../lib/copy-description'
 import { toast } from 'sonner'
 
 vi.mock('@/features/categories/hooks/use-categories', () => ({ useCategories: () => [] }))
+vi.mock('@/features/projects/hooks/use-projects', () => ({ useProjects: () => [] }))
 vi.mock('../lib/copy-description', () => ({ copyDescription: vi.fn() }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 

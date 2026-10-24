@@ -43,7 +43,3 @@ export const projectEditSchema = z.object({
   steps: z.array(projectStepInputSchema).min(1, 'Add at least one step'),
 })
 export type ProjectEditValues = z.infer<typeof projectEditSchema>
-
-export function projectProgress(project: Pick<Project, 'steps'>): { done: number; total: number } {
-  return { done: project.steps.filter((s) => s.isDone).length, total: project.steps.length }
-}

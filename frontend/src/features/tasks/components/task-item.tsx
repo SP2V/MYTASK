@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { MoreHorizontal, Repeat, Clock, Pencil, Copy, Archive, ArchiveRestore, Trash2, RotateCcw, Image, ClipboardCopy } from 'lucide-react'
+import { MoreHorizontal, Repeat, Clock, Pencil, Copy, Archive, ArchiveRestore, Trash2, RotateCcw, Image, ClipboardCopy, FolderKanban } from 'lucide-react'
 import type { Task, TaskPriority } from '@/features/tasks/schemas/task.schema'
 import { taskRepository } from '@/features/tasks/services/task-repository'
 import { tasksQueryKey } from '@/features/tasks/hooks/use-tasks'
 import { copyDescription } from '@/features/tasks/lib/copy-description'
 import { useTaskDialog } from '@/features/tasks/components/task-dialog-provider'
 import { useCategories } from '@/features/categories/hooks/use-categories'
+import { useProjects } from '@/features/projects/hooks/use-projects'
 import { useSettings } from '@/features/settings/hooks/use-settings'
 import { isOverdue, formatDateShort, formatTimeForDisplay } from '@/lib/date'
 import { PRIORITY_META, CATEGORY_COLOR_CLASSES } from '@/lib/constants'
@@ -38,12 +39,14 @@ const PRIORITY_BORDER_CLASSES: Record<TaskPriority, string> = {
 export function TaskItem({ task }: TaskItemProps) {
   const { openEdit } = useTaskDialog()
   const categories = useCategories()
+  const projects = useProjects()
   const settings = useSettings()
   const queryClient = useQueryClient()
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [copyingDescription, setCopyingDescription] = useState(false)
 
   const category = categories?.find((c) => c.id === task.categoryId)
+  const project = task.projectId ? projects?.find((p) => p.id === task.projectId) : undefined
   const overdue = isOverdue(task)
   const isCompleted = task.status === 'COMPLETED'
   const isArchived = task.status === 'ARCHIVED'
@@ -253,6 +256,13 @@ export function TaskItem({ task }: TaskItemProps) {
                 aria-hidden="true"
               />
               {category.name}
+            </Badge>
+          )}
+
+          {project && (
+            <Badge variant="outline" className="gap-1.5 rounded-md border-border/80 bg-background/50 px-2 py-0.5 text-[11px] font-medium shadow-xs">
+              <FolderKanban className="size-3 text-muted-foreground" aria-hidden="true" />
+              {project.title}
             </Badge>
           )}
 

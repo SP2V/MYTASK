@@ -40,6 +40,8 @@ user's data, and the anon key alone grants no access to any table.
      days ago
    - `supabase/migrations/0009_task_description_images.sql` — adds a private,
      per-user table for one compressed screenshot per task
+   - `supabase/migrations/0011_task_project.sql` — links tasks to a project
+     (`tasks.project_id`) so project progress counts its tasks
    (Or, with the Supabase CLI: `supabase db push`.)
 3. **Enable the Google provider:**
    - In [Google Cloud Console](https://console.cloud.google.com/apis/credentials),

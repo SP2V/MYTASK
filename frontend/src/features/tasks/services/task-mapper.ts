@@ -9,6 +9,7 @@ export interface TaskRow {
   priority: Task['priority']
   calendar_color_id: Task['calendarColorId'] | null
   category_id: string | null
+  project_id?: string | null
   due_date: string | null
   due_time: string | null
   completed_at: string | null
@@ -33,6 +34,7 @@ export function rowToTask(row: TaskRow): Task {
     priority: row.priority,
     calendarColorId: row.calendar_color_id,
     categoryId: row.category_id,
+    projectId: row.project_id ?? null,
     dueDate: row.due_date,
     dueTime: normalizeTime(row.due_time),
     completedAt: row.completed_at,
@@ -53,6 +55,7 @@ export function taskToRow(task: Task): TaskRow {
     priority: task.priority,
     calendar_color_id: task.calendarColorId ?? null,
     category_id: task.categoryId,
+    project_id: task.projectId ?? null,
     due_date: task.dueDate,
     due_time: task.dueTime,
     completed_at: task.completedAt,

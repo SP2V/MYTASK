@@ -11,6 +11,7 @@ import { useSettings } from '@/features/settings/hooks/use-settings'
 interface OpenCreateOptions {
   dueDate?: string | null
   categoryId?: string | null
+  projectId?: string | null
 }
 
 interface TaskDialogContextValue {
@@ -90,9 +91,10 @@ export function TaskDialogProvider({ children }: { children: ReactNode }) {
               onCancel={close}
               onSubmit={handleCreate}
               defaultCategoryId={state.defaults.categoryId ?? settings.defaultCategoryId}
+              defaultProjectId={state.defaults.projectId ?? null}
               defaultPriority={settings.defaultPriority}
               defaultValues={{ dueDate: state.defaults.dueDate ?? null }}
-              defaultAdvancedOpen={!!state.defaults.dueDate}
+              defaultAdvancedOpen={!!state.defaults.dueDate || !!state.defaults.projectId}
             />
           )}
           {state.mode === 'edit' && (
@@ -107,6 +109,7 @@ export function TaskDialogProvider({ children }: { children: ReactNode }) {
                 priority: state.task.priority,
                 calendarColorId: state.task.calendarColorId ?? null,
                 categoryId: state.task.categoryId,
+                projectId: state.task.projectId ?? null,
                 dueDate: state.task.dueDate,
                 dueTime: state.task.dueTime,
                 recurrence: state.task.recurrence,
