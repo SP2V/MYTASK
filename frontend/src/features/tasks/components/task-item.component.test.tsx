@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { screen } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMockSupabaseClient } from '@/test/supabase-mock'
 import { renderWithProviders } from '@/test/render-with-providers'
@@ -67,6 +67,38 @@ describe('TaskItem', () => {
     const updated = await taskRepository.getTaskById(task.id)
     expect(updated?.status).toBe('COMPLETED')
     expect(updated?.completedAt).not.toBeNull()
+  })
+
+  it('ignores a second click while completing is still in flight', async () => {
+    const task = await taskRepository.createTask({
+      title: 'Daily review',
+      description: null,
+      priority: 'MEDIUM',
+      categoryId: null,
+      dueDate: '2026-06-15',
+      dueTime: null,
+      recurrence: { frequency: 'DAILY', interval: 1, daysOfWeek: null, dayOfMonth: null, endDate: null, enabled: true },
+      notes: null,
+    })
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const original = taskRepository.completeTask.bind(taskRepository)
+    const completeSpy = vi.spyOn(taskRepository, 'completeTask').mockImplementation(async (id) => {
+      await gate
+      return original(id)
+    })
+
+    renderTaskItem(task)
+    const checkbox = screen.getByRole('checkbox', { name: /complete daily review/i })
+    fireEvent.click(checkbox)
+    fireEvent.click(checkbox)
+    expect(checkbox).toBeDisabled()
+    release()
+
+    await waitFor(() => expect(checkbox).not.toBeDisabled())
+    expect(completeSpy).toHaveBeenCalledTimes(1)
+    expect((await taskRepository.getTasks()).filter((t) => t.status === 'TODO')).toHaveLength(1)
+    completeSpy.mockRestore()
   })
 
   it('shows a due-date badge styled as overdue when the task is past due', async () => {

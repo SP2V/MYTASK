@@ -24,6 +24,15 @@ interface TaskDescriptionImageRow {
   image_data?: string
 }
 
+interface GetTaskOptions {
+  /**
+   * Screenshots can be up to ~3MB each. Status changes (complete, archive,
+   * reopen…) never need the image itself, only whether one exists, so they
+   * skip downloading it.
+   */
+  includeImage?: boolean
+}
+
 function assertNoError<T>(data: T | null, error: { message: string } | null, notFoundMsg?: string): T {
   if (error) throw new Error(error.message)
   if (data === null) throw new Error(notFoundMsg ?? 'Not found')
@@ -50,15 +59,21 @@ export class TaskRepository {
     )
   }
 
-  async getTaskById(id: string): Promise<Task | undefined> {
+  async getTaskById(id: string, { includeImage = true }: GetTaskOptions = {}): Promise<Task | undefined> {
     const { data, error } = await supabase.from(TABLE).select('*').eq('id', id).maybeSingle()
     if (error) throw new Error(error.message)
     if (!data) return undefined
-    const descriptionImage = await this.getDescriptionImage(id)
+    if (includeImage) {
+      const descriptionImage = await this.getDescriptionImage(id)
+      return taskSchema.parse({
+        ...rowToTask(data as TaskRow),
+        descriptionImage,
+        hasDescriptionImage: !!descriptionImage,
+      })
+    }
     return taskSchema.parse({
       ...rowToTask(data as TaskRow),
-      descriptionImage,
-      hasDescriptionImage: !!descriptionImage,
+      hasDescriptionImage: await this.hasDescriptionImage(id),
     })
   }
 
@@ -86,12 +101,17 @@ export class TaskRepository {
     return result
   }
 
+  /**
+   * `descriptionImage`: `undefined` leaves the stored screenshot untouched
+   * (no multi-MB re-upload on every edit); a string replaces it; `null`
+   * removes it.
+   */
   async updateTask(
     id: string,
     input: TaskUpdateInput,
     descriptionImage?: string | null,
   ): Promise<Task> {
-    const existing = await this.getTaskById(id)
+    const existing = await this.getTaskById(id, { includeImage: false })
     if (!existing) throw new Error('Task not found')
 
     const parsedInput = taskUpdateSchema.parse(input)
@@ -107,14 +127,11 @@ export class TaskRepository {
       .select()
       .single()
     const row = assertNoError(data, error)
-    const nextDescriptionImage = descriptionImage === undefined
-      ? existing.descriptionImage ?? null
-      : descriptionImage
-    await this.saveDescriptionImage(id, nextDescriptionImage)
+    if (descriptionImage !== undefined) await this.saveDescriptionImage(id, descriptionImage)
     const result = taskSchema.parse({
       ...rowToTask(row as TaskRow),
-      descriptionImage: nextDescriptionImage,
-      hasDescriptionImage: !!nextDescriptionImage,
+      ...(descriptionImage !== undefined ? { descriptionImage } : {}),
+      hasDescriptionImage: descriptionImage !== undefined ? !!descriptionImage : !!existing.hasDescriptionImage,
     })
     syncTaskToGoogleCalendar(result.id)
     return result
@@ -174,18 +191,16 @@ export class TaskRepository {
 
   /** Moves tasks into a project, or out of any project when `projectId` is null. */
   async setTasksProject(taskIds: string[], projectId: string | null): Promise<void> {
-    const updatedAt = nowISO()
-    const results = await Promise.all(
-      taskIds.map((id) =>
-        supabase.from(TABLE).update({ project_id: projectId, updated_at: updatedAt }).eq('id', id),
-      ),
-    )
-    const failed = results.find((result) => result.error)
-    if (failed?.error) throw new Error(failed.error.message)
+    if (taskIds.length === 0) return
+    const { error } = await supabase
+      .from(TABLE)
+      .update({ project_id: projectId, updated_at: nowISO() })
+      .in('id', taskIds)
+    if (error) throw new Error(error.message)
   }
 
   async reopenTask(id: string): Promise<Task> {
-    const existing = await this.getTaskById(id)
+    const existing = await this.getTaskById(id, { includeImage: false })
     if (!existing) throw new Error('Task not found')
 
     const updated = taskSchema.parse({
@@ -203,8 +218,7 @@ export class TaskRepository {
     const row = assertNoError(data, error)
     const result = taskSchema.parse({
       ...rowToTask(row as TaskRow),
-      descriptionImage: existing.descriptionImage ?? null,
-      hasDescriptionImage: !!existing.descriptionImage,
+      hasDescriptionImage: !!existing.hasDescriptionImage,
     })
     syncTaskToGoogleCalendar(result.id)
     return result
@@ -214,9 +228,14 @@ export class TaskRepository {
    * Completes a task. If it belongs to an enabled recurrence, also inserts
    * the next occurrence as a new task so the series continues rather than
    * ending permanently.
+   *
+   * Idempotent: the update only matches a row that is not already
+   * COMPLETED, so a double click (or two tabs) completing the same task
+   * concurrently creates exactly one next occurrence — Postgres re-checks the
+   * WHERE clause for the second UPDATE after the first commits.
    */
   async completeTask(id: string): Promise<{ completed: Task; nextOccurrence: Task | null }> {
-    const existing = await this.getTaskById(id)
+    const existing = await this.getTaskById(id, { includeImage: false })
     if (!existing) throw new Error('Task not found')
 
     const timestamp = nowISO()
@@ -230,15 +249,22 @@ export class TaskRepository {
       .from(TABLE)
       .update(taskToRow(completed))
       .eq('id', id)
+      .neq('status', 'COMPLETED')
       .select()
-      .single()
-    const completedResult = taskSchema.parse(
-      {
-        ...rowToTask(assertNoError(completedRow, completeError) as TaskRow),
-        descriptionImage: existing.descriptionImage ?? null,
-        hasDescriptionImage: !!existing.descriptionImage,
-      },
-    )
+      .maybeSingle()
+    if (completeError) throw new Error(completeError.message)
+
+    if (!completedRow) {
+      // Someone else completed it first (or it was deleted meanwhile).
+      const current = await this.getTaskById(id, { includeImage: false })
+      if (!current) throw new Error('Task not found')
+      return { completed: current, nextOccurrence: null }
+    }
+
+    const completedResult = taskSchema.parse({
+      ...rowToTask(completedRow as TaskRow),
+      hasDescriptionImage: !!existing.hasDescriptionImage,
+    })
     syncTaskToGoogleCalendar(completedResult.id)
 
     let nextOccurrence: Task | null = null
@@ -261,7 +287,7 @@ export class TaskRepository {
           .select()
           .single()
         const row = assertNoError(data, error)
-        const descriptionImage = existing.descriptionImage ?? null
+        const descriptionImage = existing.hasDescriptionImage ? await this.getDescriptionImage(id) : null
         if (descriptionImage) await this.saveDescriptionImage(nextTask.id, descriptionImage)
         nextOccurrence = taskSchema.parse({
           ...rowToTask(row as TaskRow),
@@ -276,7 +302,7 @@ export class TaskRepository {
   }
 
   private async setStatus(id: string, status: Task['status']): Promise<Task> {
-    const existing = await this.getTaskById(id)
+    const existing = await this.getTaskById(id, { includeImage: false })
     if (!existing) throw new Error('Task not found')
 
     const updated = taskSchema.parse({ ...existing, status, updatedAt: nowISO() })
@@ -289,8 +315,7 @@ export class TaskRepository {
     const row = assertNoError(data, error)
     const result = taskSchema.parse({
       ...rowToTask(row as TaskRow),
-      descriptionImage: existing.descriptionImage ?? null,
-      hasDescriptionImage: !!existing.descriptionImage,
+      hasDescriptionImage: !!existing.hasDescriptionImage,
     })
     syncTaskToGoogleCalendar(result.id)
     return result
@@ -304,22 +329,6 @@ export class TaskRepository {
     if (error) throw new Error(error.message)
   }
 
-  async replaceAll(tasks: Task[]): Promise<void> {
-    await this.clear()
-    if (tasks.length === 0) return
-    const { error } = await supabase.from(TABLE).insert(tasks.map(taskToRow))
-    if (error) throw new Error(error.message)
-    const images = tasks
-      .filter((task) => task.descriptionImage)
-      .map((task) => ({ task_id: task.id, image_data: task.descriptionImage! }))
-    if (images.length) {
-      const { error: imageError } = await supabase
-        .from(DESCRIPTION_IMAGES_TABLE)
-        .upsert(images, { onConflict: 'task_id' })
-      if (imageError) throw new Error(imageError.message)
-    }
-  }
-
   async getDescriptionImage(taskId: string): Promise<string | null> {
     const { data, error } = await supabase
       .from(DESCRIPTION_IMAGES_TABLE)
@@ -328,6 +337,16 @@ export class TaskRepository {
       .maybeSingle()
     if (error) throw new Error(error.message)
     return (data as { image_data: string } | null)?.image_data ?? null
+  }
+
+  private async hasDescriptionImage(taskId: string): Promise<boolean> {
+    const { data, error } = await supabase
+      .from(DESCRIPTION_IMAGES_TABLE)
+      .select('task_id')
+      .eq('task_id', taskId)
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    return !!data
   }
 
   private async saveDescriptionImage(taskId: string, imageData: string | null): Promise<void> {
@@ -340,14 +359,6 @@ export class TaskRepository {
     }
 
     const { error } = await supabase.from(DESCRIPTION_IMAGES_TABLE).delete().eq('task_id', taskId)
-    if (error) throw new Error(error.message)
-  }
-
-  async clear(): Promise<void> {
-    const { error } = await supabase
-      .from(TABLE)
-      .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000')
     if (error) throw new Error(error.message)
   }
 }

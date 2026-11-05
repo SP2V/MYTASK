@@ -1,19 +1,32 @@
 // Supabase Edge Function: sync-google-calendar
 //
 // Called directly by the frontend (fire-and-forget) right after a task is
-// created, updated, or deleted, and after "Connect Google Calendar" links a
-// new account. Never blocks task CRUD — the caller ignores failures.
+// created, updated, or deleted, after an import / Clear All Data, and after
+// "Connect Google Calendar" links a new account. Never blocks task CRUD — the
+// caller only logs failures.
 //
-// Body shapes:
-//   { operation: 'upsert', taskId: string }        - create/update the event for a task
-//   { operation: 'delete', googleEventId: string }  - delete an event (task row is already gone)
+// Body shapes (see parseSyncRequest in calendar.ts):
+//   { operation: 'upsert', taskId }                 create/update the event for a task
+//   { operation: 'upsert_many', taskIds }           same, up to 50 tasks
+//   { operation: 'delete', googleEventId }          delete an event (task row is already gone)
+//   { operation: 'delete_many', googleEventIds }    same, up to 50 events
+//   optional `timeZone`: the browser's IANA zone, used to place timed events.
 //
 // Required secrets (`supabase secrets set NAME=value`):
 //   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET - same OAuth client used for Supabase Auth's
 //                                              Google provider, needed to refresh access tokens.
+// Optional: CALENDAR_TIME_ZONE - fallback zone when the request has none (default Asia/Bangkok).
 // SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY are injected automatically.
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.109.0'
+import {
+  eventStartDate,
+  parseSyncRequest,
+  planSync,
+  resolveTimeZone,
+  toEventBody,
+  type TaskRow,
+} from './calendar.ts'
 
 interface TokenRow {
   refresh_token: string
@@ -22,140 +35,8 @@ interface TokenRow {
   calendar_id: string
 }
 
-interface RecurrenceRow {
-  frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' | 'CUSTOM'
-  interval: number
-  daysOfWeek: number[] | null
-  dayOfMonth: number | null
-  endDate: string | null
-  enabled: boolean
-}
-
-interface TaskRow {
-  id: string
-  user_id: string
-  title: string
-  status: string
-  due_date: string | null
-  due_time: string | null
-  calendar_color_id: string | null
-  google_event_id: string | null
-  recurrence: RecurrenceRow | null
-  series_id: string | null
-}
-
-async function getValidAccessToken(
-  admin: ReturnType<typeof createClient>,
-  userId: string,
-  token: TokenRow,
-): Promise<string> {
-  const expiresAt = token.access_token_expires_at ? new Date(token.access_token_expires_at).getTime() : 0
-  if (token.access_token && expiresAt > Date.now() + 60_000) {
-    return token.access_token
-  }
-
-  const clientId = Deno.env.get('GOOGLE_CLIENT_ID')!
-  const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')!
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: token.refresh_token,
-      grant_type: 'refresh_token',
-    }),
-  })
-  if (!res.ok) throw new Error(`Google token refresh failed: ${res.status} ${await res.text()}`)
-  const json = (await res.json()) as { access_token: string; expires_in: number }
-
-  await admin
-    .from('google_calendar_tokens')
-    .update({
-      access_token: json.access_token,
-      access_token_expires_at: new Date(Date.now() + json.expires_in * 1000).toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('user_id', userId)
-
-  return json.access_token
-}
-
-const RRULE_WEEKDAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA']
-const CALENDAR_TIME_ZONE = 'Asia/Bangkok'
-
-function addDays(date: string, days: number): string {
-  const value = new Date(`${date}T00:00:00.000Z`)
-  value.setUTCDate(value.getUTCDate() + days)
-  return value.toISOString().slice(0, 10)
-}
-
-function timedRange(date: string, rawTime: string): { start: string; end: string } {
-  // Postgres `time` values are returned as HH:MM:SS, while the web app uses
-  // HH:MM. Do not append seconds blindly: that produced invalid RFC3339 such
-  // as `2026-09-30T13:00:00:00+07:00` for every timed task.
-  const match = /^(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?$/.exec(rawTime)
-  if (!match) throw new Error(`Invalid task due_time: ${rawTime}`)
-  const hours = Number(match[1])
-  const minutes = Number(match[2])
-  const seconds = Number(match[3] ?? '0')
-  if (hours > 23 || minutes > 59 || seconds > 59) throw new Error(`Invalid task due_time: ${rawTime}`)
-
-  const start = `${date}T${match[1]}:${match[2]}:${String(seconds).padStart(2, '0')}+07:00`
-  const endMinutesOfDay = hours * 60 + minutes + 60
-  const endDate = addDays(date, Math.floor(endMinutesOfDay / (24 * 60)))
-  const endHour = Math.floor((endMinutesOfDay % (24 * 60)) / 60)
-  const endMinute = endMinutesOfDay % 60
-  const end = `${endDate}T${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}:${String(seconds).padStart(2, '0')}+07:00`
-  return { start, end }
-}
-
-// Google's recurrence array takes RFC 5545 RRULE strings. The app's own
-// `computeNextOccurrence` (recurrence-engine.ts) only ever advances one step
-// at a time, so this mirrors that model as closely as RRULE allows: CUSTOM
-// has no RRULE equivalent and is treated as a day-interval like DAILY, and
-// MONTHLY's day-of-month clamping (recurrence-engine.ts's addMonthsClamped)
-// isn't replicated — RRULE's BYMONTHDAY skips short months instead.
-function buildRecurrenceRule(recurrence: RecurrenceRow, isAllDay: boolean): string[] {
-  const freq = recurrence.frequency === 'CUSTOM' ? 'DAILY' : recurrence.frequency
-  const parts = [`FREQ=${freq}`, `INTERVAL=${Math.max(1, recurrence.interval)}`]
-  if (freq === 'WEEKLY' && recurrence.daysOfWeek && recurrence.daysOfWeek.length > 0) {
-    parts.push(`BYDAY=${recurrence.daysOfWeek.map((d) => RRULE_WEEKDAYS[d]).join(',')}`)
-  }
-  if (freq === 'MONTHLY' && recurrence.dayOfMonth) {
-    parts.push(`BYMONTHDAY=${recurrence.dayOfMonth}`)
-  }
-  if (recurrence.endDate) {
-    const compact = recurrence.endDate.replace(/-/g, '')
-    parts.push(`UNTIL=${isAllDay ? compact : `${compact}T235959Z`}`)
-  }
-  return [`RRULE:${parts.join(';')}`]
-}
-
-function toEventBody(task: TaskRow) {
-  const isAllDay = !task.due_time
-  const range = !isAllDay && task.due_date && task.due_time
-    ? timedRange(task.due_date, task.due_time)
-    : null
-  const start = isAllDay
-    ? { date: task.due_date }
-    : { dateTime: range!.start, timeZone: CALENDAR_TIME_ZONE }
-  const end = isAllDay
-    ? { date: addDays(task.due_date!, 1) }
-    : { dateTime: range!.end, timeZone: CALENDAR_TIME_ZONE }
-  const recurrence = task.recurrence?.enabled ? buildRecurrenceRule(task.recurrence, isAllDay) : []
-  return { summary: task.title, start, end, recurrence, colorId: task.calendar_color_id }
-}
-
-async function deleteEvent(accessToken: string, calendarId: string, eventId: string): Promise<void> {
-  const res = await fetch(
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
-    { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } },
-  )
-  if (!res.ok && res.status !== 404 && res.status !== 410) {
-    throw new Error(`Calendar event delete failed: ${res.status} ${await res.text()}`)
-  }
-}
+const TASK_COLUMNS =
+  'id, user_id, title, status, due_date, due_time, calendar_color_id, google_event_id, recurrence, series_id'
 
 // The frontend calls this function directly from the browser via
 // supabase.functions.invoke(), which triggers a CORS preflight (OPTIONS).
@@ -166,132 +47,252 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}
+
+async function getValidAccessToken(admin: SupabaseClient, userId: string, token: TokenRow): Promise<string> {
+  const expiresAt = token.access_token_expires_at ? new Date(token.access_token_expires_at).getTime() : 0
+  if (token.access_token && expiresAt > Date.now() + 60_000) {
+    return token.access_token
+  }
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: Deno.env.get('GOOGLE_CLIENT_ID')!,
+      client_secret: Deno.env.get('GOOGLE_CLIENT_SECRET')!,
+      refresh_token: token.refresh_token,
+      grant_type: 'refresh_token',
+    }),
+  })
+  if (!res.ok) throw new Error(`Google token refresh failed: ${res.status} ${await res.text()}`)
+  const body = (await res.json()) as { access_token: string; expires_in: number }
+
+  await admin
+    .from('google_calendar_tokens')
+    .update({
+      access_token: body.access_token,
+      access_token_expires_at: new Date(Date.now() + body.expires_in * 1000).toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', userId)
+
+  return body.access_token
+}
+
+class GoogleCalendar {
+  constructor(
+    private readonly accessToken: string,
+    private readonly calendarId: string,
+  ) {}
+
+  private url(eventId?: string): string {
+    const base = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(this.calendarId)}/events`
+    return eventId ? `${base}/${encodeURIComponent(eventId)}` : base
+  }
+
+  private headers(): HeadersInit {
+    return { Authorization: `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' }
+  }
+
+  /** null when the event no longer exists (deleted in Google, 404/410, or cancelled). */
+  async get(eventId: string): Promise<{ status?: string; start?: { date?: string; dateTime?: string } } | null> {
+    const res = await fetch(this.url(eventId), { headers: this.headers() })
+    if (res.status === 404 || res.status === 410) return null
+    if (!res.ok) throw new Error(`Calendar event read failed: ${res.status} ${await res.text()}`)
+    const event = await res.json()
+    return event.status === 'cancelled' ? null : event
+  }
+
+  /** false when the event no longer exists, so the caller can recreate it. */
+  async patch(eventId: string, body: unknown): Promise<boolean> {
+    const res = await fetch(this.url(eventId), { method: 'PATCH', headers: this.headers(), body: JSON.stringify(body) })
+    if (res.status === 404 || res.status === 410) return false
+    if (!res.ok) throw new Error(`Calendar event update failed: ${res.status} ${await res.text()}`)
+    const event = (await res.json()) as { status?: string }
+    return event.status !== 'cancelled'
+  }
+
+  async create(body: unknown): Promise<string> {
+    const res = await fetch(this.url(), { method: 'POST', headers: this.headers(), body: JSON.stringify(body) })
+    if (!res.ok) throw new Error(`Calendar event create failed: ${res.status} ${await res.text()}`)
+    return ((await res.json()) as { id: string }).id
+  }
+
+  async delete(eventId: string): Promise<void> {
+    const res = await fetch(this.url(eventId), { method: 'DELETE', headers: this.headers() })
+    if (!res.ok && res.status !== 404 && res.status !== 410) {
+      throw new Error(`Calendar event delete failed: ${res.status} ${await res.text()}`)
+    }
+  }
+}
+
+interface SyncContext {
+  admin: SupabaseClient
+  userId: string
+  calendar: GoogleCalendar
+  timeZone: string
+}
+
+async function setEventId(ctx: SyncContext, taskId: string, eventId: string | null): Promise<void> {
+  const { error } = await ctx.admin
+    .from('tasks')
+    .update({ google_event_id: eventId })
+    .eq('id', taskId)
+    .eq('user_id', ctx.userId)
+  if (error) throw new Error(`Saving google_event_id failed: ${error.message}`)
+}
+
+/**
+ * A recurring series is one Google event shared by all its task instances,
+ * but only one row may hold its id — otherwise deleting an old completed
+ * instance would delete the whole series. Ownership moves to whichever active
+ * instance is being synced (normally the newest occurrence, right after the
+ * previous one is completed).
+ */
+async function adoptSeriesEvent(ctx: SyncContext, task: TaskRow): Promise<string | null> {
+  const seriesKey = task.series_id ?? task.id
+  const { data: holder, error } = await ctx.admin
+    .from('tasks')
+    .select('id, google_event_id')
+    .eq('user_id', ctx.userId)
+    .neq('id', task.id)
+    .not('google_event_id', 'is', null)
+    .or(`id.eq.${seriesKey},series_id.eq.${seriesKey}`)
+    .limit(1)
+    .maybeSingle()
+  if (error) throw new Error(`Looking up the series event failed: ${error.message}`)
+  if (!holder) return null
+
+  const eventId = (holder as { google_event_id: string }).google_event_id
+  await setEventId(ctx, task.id, eventId)
+  await setEventId(ctx, (holder as { id: string }).id, null)
+  return eventId
+}
+
+async function syncTask(ctx: SyncContext, taskId: string): Promise<string> {
+  const { data, error } = await ctx.admin
+    .from('tasks')
+    .select(TASK_COLUMNS)
+    .eq('id', taskId)
+    .eq('user_id', ctx.userId)
+    .maybeSingle()
+  if (error) throw new Error(`Reading the task failed: ${error.message}`)
+  if (!data) return 'not_found'
+  const task = data as TaskRow
+  const plan = planSync(task)
+
+  if (plan.kind === 'keep') return 'kept_series_event'
+
+  if (plan.kind === 'remove') {
+    if (!task.google_event_id) return 'nothing_to_remove'
+    await ctx.calendar.delete(task.google_event_id)
+    await setEventId(ctx, task.id, null)
+    return 'removed'
+  }
+
+  let eventId = task.google_event_id
+  if (!eventId && plan.recurring) eventId = await adoptSeriesEvent(ctx, task)
+
+  if (eventId) {
+    // A later instance must not move the series' first day — that would
+    // erase every earlier occurrence from Google Calendar.
+    let startDate: string | undefined
+    let exists = true
+    if (plan.isContinuation) {
+      const event = await ctx.calendar.get(eventId)
+      exists = event !== null
+      startDate = (event && eventStartDate(event)) ?? undefined
+    }
+    if (exists && (await ctx.calendar.patch(eventId, toEventBody(task, ctx.timeZone, startDate)))) {
+      return 'updated'
+    }
+    // Deleted on the Google side: fall through and recreate it.
+  }
+
+  const createdId = await ctx.calendar.create(toEventBody(task, ctx.timeZone))
+  await setEventId(ctx, task.id, createdId)
+  return eventId ? 'recreated' : 'created'
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-
   const authHeader = req.headers.get('Authorization')
-  if (!authHeader)
-    return new Response(JSON.stringify({ error: 'Missing Authorization' }), {
-      status: 401,
-      headers: corsHeaders,
-    })
+  if (!authHeader) return json({ error: 'Missing Authorization' }, 401)
 
-  const asUser = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } })
-  const {
-    data: { user },
-  } = await asUser.auth.getUser()
-  if (!user)
-    return new Response(JSON.stringify({ error: 'Not authenticated' }), { status: 401, headers: corsHeaders })
-
-  const admin = createClient(supabaseUrl, serviceRoleKey)
-
-  const { data: token } = await admin
-    .from('google_calendar_tokens')
-    .select('refresh_token, access_token, access_token_expires_at, calendar_id')
-    .eq('user_id', user.id)
-    .maybeSingle()
-
-  if (!token) {
-    // Calendar isn't connected for this user — nothing to do, not an error.
-    return new Response(JSON.stringify({ skipped: true, reason: 'not_connected' }), {
-      status: 200,
-      headers: corsHeaders,
-    })
+  let rawBody: unknown
+  try {
+    rawBody = await req.json()
+  } catch {
+    return json({ error: 'Body must be valid JSON' }, 400)
   }
-
-  const body = (await req.json()) as
-    | { operation: 'upsert'; taskId: string }
-    | { operation: 'delete'; googleEventId: string }
+  const parsed = parseSyncRequest(rawBody)
+  if (!parsed.ok) return json({ error: parsed.error }, 400)
+  const request = parsed.value
 
   try {
-    const accessToken = await getValidAccessToken(admin, user.id, token as TokenRow)
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const asUser = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } },
+    })
+    const {
+      data: { user },
+    } = await asUser.auth.getUser()
+    if (!user) return json({ error: 'Not authenticated' }, 401)
 
-    if (body.operation === 'delete') {
-      await deleteEvent(accessToken, (token as TokenRow).calendar_id, body.googleEventId)
-      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: corsHeaders })
-    }
-
-    const { data: task } = await admin
-      .from('tasks')
-      .select('id, user_id, title, status, due_date, due_time, calendar_color_id, google_event_id, recurrence, series_id')
-      .eq('id', body.taskId)
+    const admin = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    const { data: token, error: tokenError } = await admin
+      .from('google_calendar_tokens')
+      .select('refresh_token, access_token, access_token_expires_at, calendar_id')
+      .eq('user_id', user.id)
       .maybeSingle()
+    if (tokenError) throw new Error(tokenError.message)
+    // Calendar isn't connected for this user — nothing to do, not an error.
+    if (!token) return json({ skipped: true, reason: 'not_connected' })
 
-    if (!task || (task as TaskRow).user_id !== user.id) {
-      return new Response(JSON.stringify({ error: 'Task not found' }), { status: 404, headers: corsHeaders })
-    }
-    const taskRow = task as TaskRow
-    const calendarId = (token as TokenRow).calendar_id
-    const isDone = taskRow.status === 'COMPLETED' || taskRow.status === 'ARCHIVED'
-    // A generated continuation of a still-recurring series (series_id set,
-    // recurrence still enabled) is already covered by the series root's
-    // single Google recurring event — nothing new to create for it.
-    const isRecurringContinuation = taskRow.series_id !== null && !!taskRow.recurrence?.enabled
-    const isRecurringMaster = taskRow.series_id === null && !!taskRow.recurrence?.enabled
-
-    if (isRecurringContinuation) {
-      return new Response(JSON.stringify({ ok: true, action: 'skipped_series_continuation' }), {
-        status: 200,
-        headers: corsHeaders,
-      })
+    const tokenRow = token as TokenRow
+    const accessToken = await getValidAccessToken(admin, user.id, tokenRow)
+    const ctx: SyncContext = {
+      admin,
+      userId: user.id,
+      calendar: new GoogleCalendar(accessToken, tokenRow.calendar_id),
+      timeZone: resolveTimeZone(request.timeZone, Deno.env.get('CALENDAR_TIME_ZONE')),
     }
 
-    if (isDone || !taskRow.due_date) {
-      // Completing one instance of an ongoing series must not delete the
-      // recurring master event — that would wipe every future occurrence
-      // from Google Calendar too. Only remove the event for a one-off task,
-      // or once the series itself has no due date left.
-      if (taskRow.google_event_id && !(isDone && isRecurringMaster)) {
-        await deleteEvent(accessToken, calendarId, taskRow.google_event_id)
-        await admin.from('tasks').update({ google_event_id: null }).eq('id', taskRow.id)
+    // Sequential: keeps Google API usage gentle and series ownership moves
+    // (adoptSeriesEvent) free of races within one request.
+    const results: { id: string; action?: string; error?: string }[] = []
+    if (request.operation === 'delete') {
+      for (const eventId of request.googleEventIds) {
+        try {
+          await ctx.calendar.delete(eventId)
+          results.push({ id: eventId, action: 'deleted' })
+        } catch (err) {
+          results.push({ id: eventId, error: err instanceof Error ? err.message : String(err) })
+        }
       }
-      return new Response(JSON.stringify({ ok: true, action: 'skipped_or_removed' }), {
-        status: 200,
-        headers: corsHeaders,
-      })
+    } else {
+      for (const taskId of request.taskIds) {
+        try {
+          results.push({ id: taskId, action: await syncTask(ctx, taskId) })
+        } catch (err) {
+          results.push({ id: taskId, error: err instanceof Error ? err.message : String(err) })
+        }
+      }
     }
 
-    const eventBody = toEventBody(taskRow)
-    if (taskRow.google_event_id) {
-      const res = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${taskRow.google_event_id}`,
-        {
-          method: 'PATCH',
-          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(eventBody),
-        },
-      )
-      if (!res.ok) throw new Error(`Calendar event update failed: ${res.status} ${await res.text()}`)
-      return new Response(JSON.stringify({ ok: true, action: 'updated' }), {
-        status: 200,
-        headers: corsHeaders,
-      })
+    const failed = results.filter((r) => r.error)
+    if (results.length === 1) {
+      return failed.length ? json({ error: failed[0]!.error }, 500) : json({ ok: true, action: results[0]!.action })
     }
-
-    const res = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
-      {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(eventBody),
-      },
-    )
-    if (!res.ok) throw new Error(`Calendar event create failed: ${res.status} ${await res.text()}`)
-    const created = (await res.json()) as { id: string }
-    await admin.from('tasks').update({ google_event_id: created.id }).eq('id', taskRow.id)
-
-    return new Response(JSON.stringify({ ok: true, action: 'created' }), {
-      status: 200,
-      headers: corsHeaders,
-    })
+    return json({ ok: failed.length === 0, results }, failed.length === results.length ? 500 : 200)
   } catch (err) {
-    return new Response(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }), {
-      status: 500,
-      headers: corsHeaders,
-    })
+    return json({ error: err instanceof Error ? err.message : String(err) }, 500)
   }
 })

@@ -42,6 +42,12 @@ user's data, and the anon key alone grants no access to any table.
      per-user table for one compressed screenshot per task
    - `supabase/migrations/0011_task_project.sql` — links tasks to a project
      (`tasks.project_id`) so project progress counts its tasks
+   - `supabase/migrations/0012_google_token_write_only.sql` — makes the Google
+     refresh token write-only for the browser (saved through the
+     `save_google_calendar_token` RPC, readable only by the Edge Function)
+   - `supabase/migrations/0013_enforce_reference_owner.sql` — triggers that
+     reject links to another user's category/project/task (RLS alone only
+     checks each row's own `user_id`)
    (Or, with the Supabase CLI: `supabase db push`.)
 3. **Enable the Google provider:**
    - In [Google Cloud Console](https://console.cloud.google.com/apis/credentials),
@@ -88,8 +94,33 @@ there's no schedule or cron involved for this one.
    stored token; already-created calendar events are left as-is.
 
 The stored refresh token grants Calendar access to whichever Google account
-connected — treat the `google_calendar_tokens` table as sensitive. Only the Edge
-Function (via the service role key) and the owning user (via RLS) can read it.
+connected — treat the `google_calendar_tokens` table as sensitive. Since
+migration `0012`, only the Edge Function (via the service role key) can read the
+token; the browser can save one (RPC), check whether one exists, and delete it.
+
+Timed events are placed in the browser's time zone (sent with each sync
+request). Set the optional `CALENDAR_TIME_ZONE` secret to change the fallback
+used when a request has none (default `Asia/Bangkok`).
+
+A recurring task is one recurring Google event. When an occurrence is completed,
+the next occurrence takes over that event, so edits to the current occurrence
+(title, time, color, rule) update the whole series and deleting an old completed
+occurrence never deletes the series. Archiving a recurring task removes its
+event. If an event was deleted on the Google side, the next sync recreates it.
+
+**After pulling these changes, redeploy the function** (`supabase functions
+deploy sync-google-calendar`) and apply migrations `0012`/`0013`.
+
+## Testing the migrations
+
+`bash backend/tests/run-migration-tests.sh` applies every migration to a
+throwaway local Postgres (with small Supabase stand-ins, no Docker needed) and
+runs the SQL assertions in `backend/tests/*.test.sql` — e.g. that the browser
+can't read the refresh token and can't link rows to another user's data. It
+needs the PostgreSQL server binaries installed.
+
+The Edge Function's pure logic (`functions/sync-google-calendar/calendar.ts`) is
+unit-tested by the frontend's `npm run test` (`backend/tests/*.test.ts`).
 
 ## Completed task cleanup
 

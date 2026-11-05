@@ -88,6 +88,47 @@ describe('computeNextOccurrence', () => {
         ),
       ).toBe('2026-01-02')
     })
+
+    describe('multi-week interval with selected weekdays', () => {
+      // Every 2 weeks on Monday + Wednesday. 2026-01-05 is a Monday.
+      const everyOtherMonWed = recurrence({ frequency: 'WEEKLY', interval: 2, daysOfWeek: [1, 3] })
+
+      it('stays in the same week for a later selected day', () => {
+        expect(computeNextOccurrence('2026-01-05', everyOtherMonWed)).toBe('2026-01-07')
+      })
+
+      it('jumps the interval only after the last selected day of the week', () => {
+        expect(computeNextOccurrence('2026-01-07', everyOtherMonWed)).toBe('2026-01-19')
+      })
+
+      it('walks a full series consistently', () => {
+        const dates = ['2026-01-05']
+        for (let i = 0; i < 5; i++) {
+          dates.push(computeNextOccurrence(dates[dates.length - 1]!, everyOtherMonWed)!)
+        }
+        expect(dates).toEqual([
+          '2026-01-05',
+          '2026-01-07',
+          '2026-01-19',
+          '2026-01-21',
+          '2026-02-02',
+          '2026-02-04',
+        ])
+      })
+
+      it('treats Sunday as the end of a Monday-start week (RRULE WKST=MO)', () => {
+        // Every 3 weeks on Saturday + Sunday. 2026-01-10 is a Saturday.
+        const rule = recurrence({ frequency: 'WEEKLY', interval: 3, daysOfWeek: [6, 0] })
+        expect(computeNextOccurrence('2026-01-10', rule)).toBe('2026-01-11')
+        expect(computeNextOccurrence('2026-01-11', rule)).toBe('2026-01-31')
+      })
+
+      it('respects the series end date', () => {
+        expect(
+          computeNextOccurrence('2026-01-07', { ...everyOtherMonWed, endDate: '2026-01-18' }),
+        ).toBeNull()
+      })
+    })
   })
 
   describe('monthly', () => {

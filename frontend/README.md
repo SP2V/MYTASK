@@ -76,28 +76,38 @@ the anon key alone grants no access to anyone's data.
 
 ## Export / Import
 
-Settings → **Export Data** downloads a timestamped JSON backup:
+Settings → **Export Data** downloads a timestamped JSON backup of tasks (with
+screenshots), categories, projects (with steps), post-its and settings:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "exportedAt": "2026-08-12T00:00:00.000Z",
   "tasks": [],
   "categories": [],
+  "projects": [],
+  "postits": [],
   "settings": {}
 }
 ```
 
-Settings → **Import Data** validates the file (JSON shape, version, and every task/
-category/setting via Zod) before touching the database. An invalid file is rejected
-with an error and your existing data is left untouched. A successful import replaces
-categories then tasks then settings (in that order, to satisfy the tasks→categories
-foreign key) and shows a summary of what was imported. This is not wrapped in a single
-database transaction (no server-side function in this no-backend setup) — see the
-comment in `src/features/settings/services/backup-service.ts` for the tradeoff.
+Settings → **Import Data** validates the file (JSON shape, version, every record via
+Zod, no duplicate IDs) before touching the database; an invalid file is rejected and
+your data is left untouched. Links the backup can't satisfy (a task pointing at a
+category or project that isn't in it) are cleared rather than failing the import.
+Older **version 1** backups (no projects/post-its) are still accepted and keep your
+existing projects and post-its.
 
-**Clear All Data** (Settings) permanently wipes everything in Supabase and reseeds the
-default categories; it requires an explicit confirmation dialog.
+Supabase offers this client-only app no multi-table transaction, so the import first
+snapshots your current data and, if any write fails part-way, puts that snapshot back —
+you end up with either the backup or exactly what you had. After a successful import,
+the replaced tasks' Google Calendar events are removed and events are created for the
+imported tasks. See `src/features/settings/services/backup-service.ts`.
+
+**Clear All Data** (Settings) permanently wipes every task, category, project, post-it
+and screenshot, reseeds the default categories and settings, and removes the deleted
+tasks' events from Google Calendar (the calendar connection itself is kept); it requires
+an explicit confirmation dialog.
 
 ## Project Structure
 

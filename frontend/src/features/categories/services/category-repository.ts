@@ -75,21 +75,6 @@ export class CategoryRepository {
     const { error } = await supabase.from(TABLE).delete().eq('id', id)
     if (error) throw new Error(error.message)
   }
-
-  async replaceAll(categories: Category[]): Promise<void> {
-    await this.clear()
-    if (categories.length === 0) return
-    const { error } = await supabase.from(TABLE).insert(categories.map(categoryToRow))
-    if (error) throw new Error(error.message)
-  }
-
-  async clear(): Promise<void> {
-    const { error } = await supabase
-      .from(TABLE)
-      .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000')
-    if (error) throw new Error(error.message)
-  }
 }
 
 export const categoryRepository = new CategoryRepository()

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { MoreHorizontal, Repeat, Clock, Pencil, Copy, Archive, ArchiveRestore, Trash2, RotateCcw, Image, ClipboardCopy, FolderKanban } from 'lucide-react'
@@ -44,6 +44,8 @@ export function TaskItem({ task }: TaskItemProps) {
   const queryClient = useQueryClient()
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [copyingDescription, setCopyingDescription] = useState(false)
+  const [toggling, setToggling] = useState(false)
+  const toggleInFlight = useRef(false)
 
   const category = categories?.find((c) => c.id === task.categoryId)
   const project = task.projectId ? projects?.find((p) => p.id === task.projectId) : undefined
@@ -54,6 +56,11 @@ export function TaskItem({ task }: TaskItemProps) {
   const invalidateTasks = () => queryClient.invalidateQueries({ queryKey: tasksQueryKey })
 
   const handleToggleComplete = async () => {
+    // A ref, not just state: two clicks in the same tick both see the old
+    // state value, but the ref flips synchronously.
+    if (toggleInFlight.current) return
+    toggleInFlight.current = true
+    setToggling(true)
     try {
       if (isCompleted) {
         await taskRepository.reopenTask(task.id)
@@ -61,9 +68,12 @@ export function TaskItem({ task }: TaskItemProps) {
         const { nextOccurrence } = await taskRepository.completeTask(task.id)
         toast.success(nextOccurrence ? 'Task completed — next occurrence scheduled' : 'Task completed')
       }
-      invalidateTasks()
+      await invalidateTasks()
     } catch {
       toast.error('Unable to update task. Please try again.')
+    } finally {
+      toggleInFlight.current = false
+      setToggling(false)
     }
   }
 
@@ -142,6 +152,8 @@ export function TaskItem({ task }: TaskItemProps) {
       <Checkbox
         checked={isCompleted}
         onCheckedChange={handleToggleComplete}
+        disabled={toggling}
+        aria-busy={toggling}
         aria-label={isCompleted ? `Reopen ${task.title}` : `Complete ${task.title}`}
         className="mt-0.5 size-4.5 rounded-md border-border transition-transform active:scale-90"
       />

@@ -65,7 +65,11 @@ export function TaskDialogProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const handleUpdate = async (id: string, values: TaskFormValues, descriptionImage: string | null) => {
+  const handleUpdate = async (
+    id: string,
+    values: TaskFormValues,
+    descriptionImage: string | null | undefined,
+  ) => {
     try {
       await taskRepository.updateTask(id, values, descriptionImage)
       await queryClient.invalidateQueries({ queryKey: tasksQueryKey })
@@ -116,7 +120,14 @@ export function TaskDialogProvider({ children }: { children: ReactNode }) {
                 notes: state.task.notes,
               }}
               defaultDescriptionImage={state.task.descriptionImage}
-              onSubmit={(values, descriptionImage) => handleUpdate(state.task.id, values, descriptionImage)}
+              onSubmit={(values, descriptionImage) =>
+                handleUpdate(
+                  state.task.id,
+                  values,
+                  // Unchanged screenshot: don't re-upload up to 3MB on every save.
+                  descriptionImage === (state.task.descriptionImage ?? null) ? undefined : descriptionImage,
+                )
+              }
             />
           )}
         </DialogContent>

@@ -23,26 +23,39 @@ function addYearsClamped(date: Date, years: number): Date {
   return new Date(targetYear, month, Math.min(date.getDate(), maxDay))
 }
 
+/** Position of a date within a Monday-start week: Mon=0 … Sun=6. */
+function mondayWeekPosition(date: Date): number {
+  return (date.getDay() + 6) % 7
+}
+
+/**
+ * Weeks start on Monday here to match RFC 5545's default `WKST=MO`, which is
+ * what Google Calendar uses for the RRULE the sync function sends — so the
+ * app and the calendar agree on which week an occurrence falls in.
+ *
+ * Remaining selected days in the current week come first; only once the
+ * week is exhausted does the series jump `interval` weeks ahead. (Adding the
+ * interval to every step would wrongly skip e.g. the Wednesday right after
+ * a Monday in an "every 2 weeks on Mon+Wed" series.)
+ */
 function nextWeekly(current: Date, interval: number, daysOfWeek: number[] | null): Date {
   if (!daysOfWeek || daysOfWeek.length === 0) {
     return addDays(current, 7 * interval)
   }
-  const sorted = [...daysOfWeek].sort((a, b) => a - b)
-  let match: Date | null = null
-  for (let offset = 1; offset <= 7; offset++) {
+  const selected = new Set(daysOfWeek)
+  const position = mondayWeekPosition(current)
+
+  for (let offset = 1; position + offset <= 6; offset++) {
     const candidate = addDays(current, offset)
-    if (sorted.includes(candidate.getDay())) {
-      match = candidate
-      break
-    }
+    if (selected.has(candidate.getDay())) return candidate
   }
-  if (!match) {
-    match = addDays(current, 7)
+
+  const targetWeekStart = addDays(current, 7 * interval - position)
+  for (let offset = 0; offset < 7; offset++) {
+    const candidate = addDays(targetWeekStart, offset)
+    if (selected.has(candidate.getDay())) return candidate
   }
-  if (interval > 1) {
-    match = addDays(match, 7 * (interval - 1))
-  }
-  return match
+  return addDays(current, 7 * interval)
 }
 
 /**

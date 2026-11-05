@@ -24,13 +24,33 @@ import { connectGoogleCalendar } from '@/features/auth/services/auth-service'
 import { disconnectGoogleCalendar } from '@/features/settings/services/google-calendar-repository'
 import { useCategories, categoriesQueryKey } from '@/features/categories/hooks/use-categories'
 import { tasksQueryKey } from '@/features/tasks/hooks/use-tasks'
+import { projectsQueryKey } from '@/features/projects/hooks/use-projects'
+import { postitsQueryKey } from '@/features/postits/hooks/use-postits'
 import { settingsRepository } from '@/features/settings/services/settings-repository'
 import { buildExportData, downloadExportFile, importFromFile, type ImportResult } from '@/features/settings/services/backup-service'
+import type { ImportSummary } from '@/features/settings/schemas/import.schema'
 import { clearAllData } from '@/features/settings/services/clear-all-data'
 import type { Theme, DateFormatOption, TimeFormatOption } from '@/features/settings/schemas/settings.schema'
 import type { TaskPriority } from '@/features/tasks/schemas/task.schema'
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+function describeImportSummary(summary: ImportSummary): string {
+  const parts = [
+    `${summary.tasksImported} task(s)`,
+    `${summary.categoriesImported} categor${summary.categoriesImported === 1 ? 'y' : 'ies'}`,
+  ]
+  if (summary.projectsImported !== null) parts.push(`${summary.projectsImported} project(s)`)
+  if (summary.postitsImported !== null) parts.push(`${summary.postitsImported} post-it(s)`)
+  let text = `Imported ${parts.join(', ')}. Settings were restored from the backup.`
+  if (summary.projectsImported === null) {
+    text += ' This backup predates projects and post-its, so your existing ones were kept.'
+  }
+  if (summary.danglingReferencesCleared > 0) {
+    text += ` ${summary.danglingReferencesCleared} link(s) to a category or project missing from the backup were cleared.`
+  }
+  return text
+}
 
 export default function SettingsPage() {
   const settings = useSettings()
@@ -70,6 +90,8 @@ export default function SettingsPage() {
         queryClient.invalidateQueries({ queryKey: tasksQueryKey }),
         queryClient.invalidateQueries({ queryKey: categoriesQueryKey }),
         queryClient.invalidateQueries({ queryKey: settingsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: postitsQueryKey }),
       ])
       toast.success('Data imported successfully')
     } else {
@@ -84,6 +106,8 @@ export default function SettingsPage() {
         queryClient.invalidateQueries({ queryKey: tasksQueryKey }),
         queryClient.invalidateQueries({ queryKey: categoriesQueryKey }),
         queryClient.invalidateQueries({ queryKey: settingsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: projectsQueryKey }),
+        queryClient.invalidateQueries({ queryKey: postitsQueryKey }),
       ])
       toast.success('All data cleared')
     } catch {
@@ -304,7 +328,7 @@ export default function SettingsPage() {
         open={clearOpen}
         onOpenChange={setClearOpen}
         title="Clear all data?"
-        description="This permanently deletes every task, category, and setting stored in Supabase. This cannot be undone."
+        description="This permanently deletes every task, category, project, post-it, and setting stored in Supabase, and removes the matching events from Google Calendar. This cannot be undone."
         confirmLabel="Clear Everything"
         onConfirm={handleClearAll}
       />
@@ -315,7 +339,7 @@ export default function SettingsPage() {
             <DialogTitle>{importSummary?.success ? 'Import complete' : 'Import failed'}</DialogTitle>
             <DialogDescription>
               {importSummary?.success && importSummary.summary
-                ? `Imported ${importSummary.summary.tasksImported} task(s) and ${importSummary.summary.categoriesImported} categor${importSummary.summary.categoriesImported === 1 ? 'y' : 'ies'}. Settings were restored from the backup.`
+                ? describeImportSummary(importSummary.summary)
                 : importSummary?.error}
             </DialogDescription>
           </DialogHeader>
